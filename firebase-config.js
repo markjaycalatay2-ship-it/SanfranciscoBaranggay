@@ -8,7 +8,10 @@ const path = require('path');
 
 // Mock data store for local development without Firebase credentials
 const mockData = {
-    users: [],
+    users: [
+        { id: 1, full_name: 'Test Resident 1', username: 'resident1', role: 'resident', status: 'approved', age: 25, gender: 'Male', contact_number: '09123456789', address: 'Test Address 1' },
+        { id: 2, full_name: 'Test Resident 2', username: 'resident2', role: 'resident', status: 'pending', age: 30, gender: 'Female', contact_number: '09987654321', address: 'Test Address 2' }
+    ],
     reports: [],
     logs: []
 };

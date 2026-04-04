@@ -1136,13 +1136,6 @@ const USER_APPROVAL_HTML = `<!DOCTYPE html>
             try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
             window.location.href = '/login.html';
         }
-        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadPendingUsers(); });
-    </script>
-</body>
-</html>`;
-
-// Resident Directory HTML with embedded CSS
-const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1174,10 +1167,6 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                 <p>View all registered residents in the barangay system.</p>
             </div>
             <div class="card">
-                <div id="alert-container"></div>
-                <div style="margin-bottom: 1.5rem;">
-                    <input type="text" id="searchInput" placeholder="Search residents by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
                 <div id="residentsContainer">
                     <div class="loading">Loading residents...</div>
                 </div>
@@ -1186,44 +1175,48 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">Loading...</p>';
+            var container = document.getElementById('residentsContainer');
+            container.innerHTML = '<p style="padding:20px;text-align:center;">Loading residents...</p>';
             
             fetch('/api/all-residents')
-                .then(function(r) { 
-                    if (!r.ok) {
-                        throw new Error('Server returned ' + r.status + ' - ' + r.statusText);
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Server error: ' + response.status);
                     }
-                    return r.json(); 
+                    return response.json();
                 })
                 .then(function(data) {
                     if (!data || data.length === 0) {
-                        document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">No residents found</p>';
+                        container.innerHTML = '<p style="padding:20px;text-align:center;">No residents found in database.</p>';
                         return;
                     }
-                    var html = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#0077b6;color:white;"><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Action</th></tr>';
-                    data.forEach(function(u) {
+                    
+                    var html = '<table style="width:100%;border-collapse:collapse;">';
+                    html += '<tr style="background:#0077b6;color:white;">';
+                    html += '<th>Name</th><th>Username</th><th>Status</th><th>Action</th>';
+                    html += '</tr>';
+                    
+                    for (var i = 0; i < data.length; i++) {
+                        var u = data[i];
                         html += '<tr style="border-bottom:1px solid #ddd;">';
                         html += '<td><strong>' + (u.full_name || 'N/A') + '</strong></td>';
-                        html += '<td>' + (u.age || '-') + '</td>';
-                        html += '<td>' + (u.gender || '-') + '</td>';
                         html += '<td>' + (u.username || '-') + '</td>';
-                        html += '<td>' + (u.contact_number || '-') + '</td>';
-                        html += '<td>' + (u.address || '-') + '</td>';
-                        html += '<td><span class="status-badge status-' + (u.status || 'unknown') + '">' + (u.status || 'unknown') + '</span></td>';
-                        html += '<td><button onclick="deleteUser(' + u.id + ', \'' + (u.full_name || 'Unknown').replace(/'/g, "\\'") + '\')" style="background:red;color:white;border:none;padding:5px 10px;cursor:pointer;">Delete</button></td>';
+                        html += '<td>' + (u.status || '-') + '</td>';
+                        html += '<td><button onclick="deleteUser(' + u.id + ')" style="background:red;color:white;border:none;padding:5px 10px;cursor:pointer;">Delete</button></td>';
                         html += '</tr>';
-                    });
+                    }
                     html += '</table>';
-                    document.getElementById('residentsContainer').innerHTML = html;
+                    container.innerHTML = html;
                 })
-                .catch(function(err) {
-                    document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;color:red;"><strong>Error:</strong> ' + err.message + '<br><br><button onclick="location.reload()" style="padding:10px 20px;background:#0077b6;color:white;border:none;border-radius:4px;cursor:pointer;">Retry</button></p>';
+                .catch(function(error) {
+                    container.innerHTML = '<p style="padding:20px;text-align:center;color:red;">Error: ' + error.message + '</p>';
                 });
         });
         
         function deleteUser(id) {
             if (!confirm('Delete user ' + id + '?')) return;
-            fetch('/api/users/' + id, {method: 'DELETE'}).then(function() { location.reload(); });
+            fetch('/api/users/' + id, {method: 'DELETE'})
+                .then(function() { location.reload(); });
         }
         
         function logout() {
@@ -1680,34 +1673,16 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html by reading file and injecting CSS
+// Serve resident-directory.html
 app.get('/resident-directory.html', (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-    
-    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading resident-directory.html:', err);
-            // Fallback to inline
-            res.setHeader('Content-Type', 'text/html');
-            res.send(RESIDENT_DIRECTORY_HTML);
-            return;
-        }
-        
-        // Inject CSS inline, replacing the link tag
-        const htmlWithCSS = data.replace(
-            /<link rel="stylesheet" href="style.css">/,
-            '<style>' + CSS_CONTENT + '</style>'
-        );
-        
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.send(htmlWithCSS);
-    });
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
+// Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.redirect('/resident-directory.html');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
 // Serve transaction-history.html
@@ -2156,10 +2131,30 @@ app.get('/api/test-residents', async (req, res) => {
     ]);
 });
 
+// Diagnostic endpoint - check database status
+app.get('/api/db-status', async (req, res) => {
+    try {
+        const users = await getCollection('users');
+        res.json({
+            success: true,
+            totalUsers: users.length,
+            residents: users.filter(u => u.role === 'resident').length,
+            admins: users.filter(u => u.role === 'admin').length,
+            sampleUsers: users.slice(0, 3).map(u => ({ id: u.id, username: u.username, role: u.role }))
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Endpoint for residents - NO authentication required to ensure it works
 app.get('/api/all-residents', async (req, res) => {
     try {
+        console.log('DEBUG /api/all-residents: Starting fetch...');
         const users = await getCollection('users');
+        console.log('DEBUG /api/all-residents: Total users fetched:', users.length);
+        console.log('DEBUG /api/all-residents: All users:', users.map(u => ({ id: u.id, username: u.username, role: u.role, status: u.status })));
+        
         const residents = users
             .filter(u => u.role === 'resident')
             .map(u => ({
@@ -2172,10 +2167,11 @@ app.get('/api/all-residents', async (req, res) => {
                 address: u.address,
                 status: u.status || 'unknown'
             }));
+        console.log('DEBUG /api/all-residents: Filtered residents:', residents.length);
         res.json(residents);
     } catch (error) {
-        console.error('Error:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to fetch residents' });
+        console.error('DEBUG /api/all-residents Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch residents: ' + error.message });
     }
 });
 
