@@ -876,6 +876,750 @@ const RESIDENT_DASHBOARD_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Manage Reports HTML with embedded CSS
+const MANAGE_REPORTS_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Reports - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/admin-dashboard.html">Dashboard</a>
+                <a href="/manage-reports.html" class="active">Manage Reports</a>
+                <a href="/resident-directory.html">Resident Directory</a>
+                <a href="/user-approval.html">User Approval</a>
+                <a href="/transaction-history.html">Transaction History</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Manage Reports</h2>
+                <p>View and manage all resident reports. Update status and delete reports as needed.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="searchInput" placeholder="Search reports..." style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div style="min-width: 150px;">
+                        <select id="statusFilter" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="reportsContainer"><div class="loading">Loading reports...</div></div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let allReports = [], filteredReports = [];
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        async function loadReports() {
+            try {
+                const response = await fetch('/api/reports');
+                if (response.ok) {
+                    allReports = await response.json();
+                    filteredReports = [...allReports];
+                    displayReports(filteredReports);
+                } else { showAlert('Failed to load reports', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading reports', 'error'); }
+        }
+        function displayReports(reportsToDisplay) {
+            const container = document.getElementById('reportsContainer');
+            if (reportsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No reports found</h3><p>' + (allReports.length === 0 ? 'No reports have been submitted yet.' : 'No reports match your filters.') + '</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Incident</th><th>Resident Name</th><th>Location</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            reportsToDisplay.forEach(report => {
+                html += '<tr><td>' + (report.description.length > 80 ? report.description.substring(0, 80) + '...' : report.description) + '</td>';
+                html += '<td>' + report.resident_name + '</td><td>' + report.location + '</td>';
+                html += '<td>' + new Date(report.created_at).toLocaleDateString() + '</td>';
+                html += '<td><select class="status-badge status-' + report.status + '" onchange="updateStatus(' + report.id + ', this.value)" style="border: none; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 500; text-transform: uppercase; cursor: pointer;">';
+                html += '<option value="pending"' + (report.status === 'pending' ? ' selected' : '') + '>Pending</option>';
+                html += '<option value="ongoing"' + (report.status === 'ongoing' ? ' selected' : '') + '>Ongoing</option>';
+                html += '<option value="resolved"' + (report.status === 'resolved' ? ' selected' : '') + '>Resolved</option></select></td>';
+                html += '<td><div class="action-buttons"><button class="btn btn-sm btn-danger" onclick="deleteReport(' + report.id + ')">Delete</button></div></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        async function updateStatus(reportId, newStatus) {
+            try {
+                const response = await fetch('/api/reports/' + reportId + '/status', {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: newStatus})
+                });
+                const result = await response.json();
+                if (result.success) { showAlert('Report status updated successfully', 'success'); loadReports(); }
+                else { showAlert(result.message, 'error'); loadReports(); }
+            } catch (error) { showAlert('An error occurred while updating status', 'error'); loadReports(); }
+        }
+        async function deleteReport(reportId) {
+            if (!confirm('Are you sure you want to delete this report?')) return;
+            try {
+                const response = await fetch('/api/reports/' + reportId, {method: 'DELETE'});
+                const result = await response.json();
+                if (result.success) { showAlert('Report deleted successfully', 'success'); loadReports(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while deleting the report', 'error'); }
+        }
+        function filterReports() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            filteredReports = allReports.filter(report => {
+                const matchesSearch = report.description.toLowerCase().includes(searchTerm) || report.resident_name.toLowerCase().includes(searchTerm) || report.location.toLowerCase().includes(searchTerm);
+                return matchesSearch && (!statusFilter || report.status === statusFilter);
+            });
+            displayReports(filteredReports);
+        }
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.getElementById('searchInput').addEventListener('input', filterReports);
+        document.getElementById('statusFilter').addEventListener('change', filterReports);
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadReports(); });
+    </script>
+</body>
+</html>`;
+
+// User Approval HTML with embedded CSS
+const USER_APPROVAL_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Approval - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/admin-dashboard.html">Dashboard</a>
+                <a href="/manage-reports.html">Manage Reports</a>
+                <a href="/user-approval.html" class="active">User Approval</a>
+                <a href="/resident-directory.html">Resident Directory</a>
+                <a href="/transaction-history.html">Transaction History</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>User Approval Management</h2>
+                <p>Review and approve or reject new resident registration requests.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="searchInput" placeholder="Search pending users by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div id="pendingUsersContainer"><div class="loading">Loading pending users...</div></div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let allPendingUsers = [], filteredUsers = [];
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        async function loadPendingUsers() {
+            try {
+                const response = await fetch('/api/pending-users');
+                if (response.ok) {
+                    allPendingUsers = await response.json();
+                    filteredUsers = [...allPendingUsers];
+                    displayPendingUsers(filteredUsers);
+                } else { showAlert('Failed to load pending users', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading pending users', 'error'); }
+        }
+        function displayPendingUsers(usersToDisplay) {
+            const container = document.getElementById('pendingUsersContainer');
+            if (usersToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No pending users</h3><p>' + (allPendingUsers.length === 0 ? 'No users are currently pending approval.' : 'No users match your search.') + '</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Registration Date</th><th>Actions</th></tr></thead><tbody>';
+            usersToDisplay.forEach(user => {
+                html += '<tr><td><strong>' + user.full_name + '</strong></td>';
+                html += '<td>' + user.age + '</td><td>' + user.gender + '</td><td>' + user.username + '</td>';
+                html += '<td>' + user.contact_number + '</td><td>' + user.address + '</td>';
+                html += '<td>' + new Date(user.created_at).toLocaleDateString() + '</td>';
+                html += '<td><div class="action-buttons">';
+                html += '<button class="btn btn-sm btn-success" onclick="approveUser(' + user.id + ')">Approve</button>';
+                html += '<button class="btn btn-sm btn-danger" onclick="rejectUser(' + user.id + ')">Reject</button>';
+                html += '<button class="btn btn-sm btn-warning" onclick="deleteUser(' + user.id + ')">Delete</button>';
+                html += '</div></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        async function approveUser(userId) {
+            if (!confirm('Are you sure you want to approve this user?')) return;
+            try {
+                const response = await fetch('/api/users/' + userId + '/approve', {method: 'PUT'});
+                const result = await response.json();
+                if (result.success) { showAlert('User approved successfully', 'success'); loadPendingUsers(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while approving the user', 'error'); }
+        }
+        async function rejectUser(userId) {
+            if (!confirm('Are you sure you want to reject this user?')) return;
+            try {
+                const response = await fetch('/api/users/' + userId + '/reject', {method: 'PUT'});
+                const result = await response.json();
+                if (result.success) { showAlert('User rejected successfully', 'success'); loadPendingUsers(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while rejecting the user', 'error'); }
+        }
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            try {
+                const response = await fetch('/api/users/' + userId, {method: 'DELETE'});
+                const result = await response.json();
+                if (result.success) { showAlert('User deleted successfully', 'success'); loadPendingUsers(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while deleting the user', 'error'); }
+        }
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredUsers = allPendingUsers.filter(user => {
+                return user.full_name.toLowerCase().includes(searchTerm) || user.username.toLowerCase().includes(searchTerm) || user.address.toLowerCase().includes(searchTerm) || user.contact_number.includes(searchTerm);
+            });
+            displayPendingUsers(filteredUsers);
+        });
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadPendingUsers(); });
+    </script>
+</body>
+</html>`;
+
+// Resident Directory HTML with embedded CSS
+const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Directory - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/admin-dashboard.html">Dashboard</a>
+                <a href="/manage-reports.html">Manage Reports</a>
+                <a href="/user-approval.html">User Approval</a>
+                <a href="/resident-directory.html" class="active">Resident Directory</a>
+                <a href="/transaction-history.html">Transaction History</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Resident Directory</h2>
+                <p>View all registered residents in the barangay system.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="searchInput" placeholder="Search residents by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div id="residentsContainer"><div class="loading">Loading residents...</div></div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let allResidents = [], filteredResidents = [];
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        async function loadResidents() {
+            try {
+                const response = await fetch('/api/residents');
+                if (response.ok) {
+                    allResidents = await response.json();
+                    filteredResidents = [...allResidents];
+                    displayResidents(filteredResidents);
+                } else { showAlert('Failed to load residents', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading residents', 'error'); }
+        }
+        function displayResidents(residentsToDisplay) {
+            const container = document.getElementById('residentsContainer');
+            if (residentsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>' + (allResidents.length === 0 ? 'No residents have registered yet.' : 'No residents match your search.') + '</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact Number</th><th>Address</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>';
+            residentsToDisplay.forEach(resident => {
+                html += '<tr><td><strong>' + resident.full_name + '</strong></td>';
+                html += '<td>' + resident.age + '</td><td>' + resident.gender + '</td><td>' + resident.username + '</td>';
+                html += '<td>' + resident.contact_number + '</td><td>' + resident.address + '</td>';
+                html += '<td>' + (resident.last_login ? new Date(resident.last_login).toLocaleDateString() : 'Never') + '</td>';
+                html += '<td><div class="action-buttons"><button class="btn btn-sm btn-danger" onclick="deleteUser(' + resident.id + ', \'' + resident.full_name + '\')">Delete</button></div></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredResidents = allResidents.filter(resident => {
+                return resident.full_name.toLowerCase().includes(searchTerm) || resident.username.toLowerCase().includes(searchTerm) || resident.address.toLowerCase().includes(searchTerm) || resident.contact_number.includes(searchTerm);
+            });
+            displayResidents(filteredResidents);
+        });
+        async function deleteUser(userId, userName) {
+            if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
+            try {
+                const response = await fetch('/api/users/' + userId, {method: 'DELETE'});
+                const result = await response.json();
+                if (result.success) { showAlert(userName + ' deleted successfully', 'success'); loadResidents(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while deleting the user', 'error'); }
+        }
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadResidents(); });
+    </script>
+</body>
+</html>`;
+
+// Transaction History HTML with embedded CSS
+const TRANSACTION_HISTORY_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/admin-dashboard.html">Dashboard</a>
+                <a href="/manage-reports.html">Manage Reports</a>
+                <a href="/user-approval.html">User Approval</a>
+                <a href="/resident-directory.html">Resident Directory</a>
+                <a href="/transaction-history.html" class="active">Transaction History</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Transaction History / System Logs</h2>
+                <p>View all system activities and user actions.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="searchInput" placeholder="Search logs..." style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div style="min-width: 150px;">
+                        <select id="actionFilter" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">All Actions</option>
+                            <option value="Login">Login</option>
+                            <option value="Logout">Logout</option>
+                            <option value="Registration">Registration</option>
+                            <option value="Created report">Created Report</option>
+                            <option value="Deleted report">Deleted Report</option>
+                            <option value="Updated report">Updated Report</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="logsContainer"><div class="loading">Loading transaction history...</div></div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let allLogs = [], filteredLogs = [];
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                if (response.ok) {
+                    allLogs = await response.json();
+                    filteredLogs = [...allLogs];
+                    displayLogs(filteredLogs);
+                } else { showAlert('Failed to load transaction history', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading transaction history', 'error'); }
+        }
+        function displayLogs(logsToDisplay) {
+            const container = document.getElementById('logsContainer');
+            if (logsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No logs found</h3><p>' + (allLogs.length === 0 ? 'No system activities recorded yet.' : 'No logs match your filters.') + '</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Date & Time</th><th>User</th><th>Username</th><th>Action</th></tr></thead><tbody>';
+            logsToDisplay.forEach(log => {
+                html += '<tr><td>' + new Date(log.timestamp).toLocaleString() + '</td>';
+                html += '<td><strong>' + log.full_name + '</strong></td><td>' + log.username + '</td><td>' + log.action + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        function filterLogs() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const actionFilter = document.getElementById('actionFilter').value;
+            filteredLogs = allLogs.filter(log => {
+                const matchesSearch = log.full_name.toLowerCase().includes(searchTerm) || log.username.toLowerCase().includes(searchTerm) || log.action.toLowerCase().includes(searchTerm);
+                const matchesAction = !actionFilter || log.action.includes(actionFilter);
+                return matchesSearch && matchesAction;
+            });
+            displayLogs(filteredLogs);
+        }
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.getElementById('searchInput').addEventListener('input', filterLogs);
+        document.getElementById('actionFilter').addEventListener('change', filterLogs);
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadLogs(); });
+    </script>
+</body>
+</html>`;
+
+// New Report HTML with embedded CSS
+const NEW_REPORT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Report - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/resident-dashboard.html">Dashboard</a>
+                <a href="/new-report.html" class="active">New Report</a>
+                <a href="/my-reports.html">My Reports</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Submit New Report</h2>
+                <p>Please provide detailed information about the incident or complaint you wish to report.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <form id="reportForm">
+                    <div class="form-group">
+                        <label for="description">What happened? (Description)</label>
+                        <textarea id="description" name="description" required placeholder="Please describe the incident or complaint in detail..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="date_time">When did it happen?</label>
+                        <input type="datetime-local" id="date_time" name="date_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">Where did it happen? (Location/Purok)</label>
+                        <input type="text" id="location" name="location" required placeholder="e.g., Purok 1, Near Barangay Hall">
+                    </div>
+                    <div class="form-group">
+                        <label for="involved_persons">Who was involved?</label>
+                        <input type="text" id="involved_persons" name="involved_persons" placeholder="Names of people involved (if known)">
+                    </div>
+                    <div class="form-group">
+                        <label for="cause">Possible cause</label>
+                        <textarea id="cause" name="cause" placeholder="What do you think caused this incident?"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <button type="submit" class="btn btn-primary">Submit Report</button>
+                        <button type="button" class="btn btn-secondary" onclick="window.location.href='/resident-dashboard.html'">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    <script>
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        function setDefaultDateTime() {
+            const now = new Date();
+            const offset = now.getTimezoneOffset() * 60000;
+            const localTime = new Date(now - offset);
+            document.getElementById('date_time').value = localTime.toISOString().slice(0, 16);
+        }
+        document.getElementById('reportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            try {
+                const response = await fetch('/api/reports', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('Report submitted successfully! Redirecting to dashboard...', 'success');
+                    setTimeout(() => { window.location.href = '/resident-dashboard.html'; }, 2000);
+                } else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred. Please try again.', 'error'); }
+        });
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); setDefaultDateTime(); });
+    </script>
+</body>
+</html>`;
+
+// My Reports HTML with embedded CSS
+const MY_REPORTS_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Reports - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/resident-dashboard.html">Dashboard</a>
+                <a href="/new-report.html">New Report</a>
+                <a href="/my-reports.html" class="active">My Reports</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>My Reports</h2>
+                <p>View and manage all your submitted reports.</p>
+            </div>
+            <div class="card">
+                <div id="alert-container"></div>
+                <div id="reportsContainer"><div class="loading">Loading your reports...</div></div>
+            </div>
+        </main>
+    </div>
+    <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h2>Edit Report</h2>
+            <div id="editAlertContainer"></div>
+            <form id="editForm">
+                <input type="hidden" id="editReportId">
+                <div class="form-group"><label for="editDescription">Description</label><textarea id="editDescription" required></textarea></div>
+                <div class="form-group"><label for="editDateTime">Date & Time</label><input type="datetime-local" id="editDateTime" required></div>
+                <div class="form-group"><label for="editLocation">Location</label><input type="text" id="editLocation" required></div>
+                <div class="form-group"><label for="editInvolvedPersons">Involved Persons</label><input type="text" id="editInvolvedPersons"></div>
+                <div class="form-group"><label for="editCause">Cause</label><input type="text" id="editCause"></div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        let reports = [], currentUserId = null;
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUserId = user.userId;
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
+        }
+        async function loadReports() {
+            try {
+                const response = await fetch('/api/my-reports');
+                if (response.ok) {
+                    reports = await response.json();
+                    displayReports(reports);
+                } else { showAlert('Failed to load your reports', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading your reports', 'error'); }
+        }
+        function displayReports(reportsToDisplay) {
+            const container = document.getElementById('reportsContainer');
+            if (reportsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No reports found</h3><p>You haven\'t submitted any reports yet.</p><button class="btn btn-primary" onclick="window.location.href=\'/new-report.html\'">Submit Your First Report</button></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Description</th><th>Location</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            reportsToDisplay.forEach(report => {
+                html += '<tr><td>' + (report.description.length > 100 ? report.description.substring(0, 100) + '...' : report.description) + '</td>';
+                html += '<td>' + report.location + '</td>';
+                html += '<td>' + new Date(report.created_at).toLocaleDateString() + '</td>';
+                html += '<td><span class="status-badge status-' + report.status + '">' + report.status + '</span></td>';
+                html += '<td><div class="action-buttons"><button class="btn btn-sm btn-primary" onclick="editReport(' + report.id + ')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteReport(' + report.id + ')">Delete</button></div></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        function editReport(reportId) {
+            const report = reports.find(r => r.id === reportId);
+            if (!report) return;
+            document.getElementById('editReportId').value = report.id;
+            document.getElementById('editDescription').value = report.description;
+            document.getElementById('editDateTime').value = report.date_time;
+            document.getElementById('editLocation').value = report.location;
+            document.getElementById('editInvolvedPersons').value = report.involved_persons || '';
+            document.getElementById('editCause').value = report.cause || '';
+            document.getElementById('editModal').style.display = 'block';
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('editAlertContainer').innerHTML = '';
+        }
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const reportId = document.getElementById('editReportId').value;
+            const data = {
+                description: document.getElementById('editDescription').value,
+                date_time: document.getElementById('editDateTime').value,
+                location: document.getElementById('editLocation').value,
+                involved_persons: document.getElementById('editInvolvedPersons').value,
+                cause: document.getElementById('editCause').value
+            };
+            try {
+                const response = await fetch('/api/reports/' + reportId, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) { showEditAlert('Report updated successfully', 'success'); closeEditModal(); loadReports(); }
+                else { showEditAlert(result.message, 'error'); }
+            } catch (error) { showEditAlert('An error occurred. Please try again.', 'error'); }
+        });
+        async function deleteReport(reportId) {
+            if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) return;
+            try {
+                const response = await fetch('/api/reports/' + reportId, {method: 'DELETE'});
+                const result = await response.json();
+                if (result.success) { showAlert('Report deleted successfully', 'success'); loadReports(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while deleting the report', 'error'); }
+        }
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+        function showEditAlert(message, type) {
+            document.getElementById('editAlertContainer').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('editAlertContainer').innerHTML = ''; }, 5000);
+        }
+        async function logout() {
+            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadReports(); });
+    </script>
+</body>
+</html>`;
+
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -909,10 +1653,94 @@ app.get('/admin-dashboard.html', (req, res) => {
     res.send(ADMIN_DASHBOARD_HTML);
 });
 
+// Serve admin dashboard clean URL
+app.get('/admin-dashboard', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(ADMIN_DASHBOARD_HTML);
+});
+
 // Serve resident-dashboard.html inline with embedded CSS
 app.get('/resident-dashboard.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(RESIDENT_DASHBOARD_HTML);
+});
+
+// Serve resident dashboard clean URL
+app.get('/resident-dashboard', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DASHBOARD_HTML);
+});
+
+// Serve manage-reports.html
+app.get('/manage-reports.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(MANAGE_REPORTS_HTML);
+});
+
+// Serve manage-reports clean URL
+app.get('/manage-reports', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(MANAGE_REPORTS_HTML);
+});
+
+// Serve user-approval.html
+app.get('/user-approval.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(USER_APPROVAL_HTML);
+});
+
+// Serve user-approval clean URL
+app.get('/user-approval', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(USER_APPROVAL_HTML);
+});
+
+// Serve resident-directory.html
+app.get('/resident-directory.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
+});
+
+// Serve resident-directory clean URL
+app.get('/resident-directory', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
+});
+
+// Serve transaction-history.html
+app.get('/transaction-history.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(TRANSACTION_HISTORY_HTML);
+});
+
+// Serve transaction-history clean URL
+app.get('/transaction-history', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(TRANSACTION_HISTORY_HTML);
+});
+
+// Serve new-report.html
+app.get('/new-report.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(NEW_REPORT_HTML);
+});
+
+// Serve new-report clean URL
+app.get('/new-report', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(NEW_REPORT_HTML);
+});
+
+// Serve my-reports.html
+app.get('/my-reports.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(MY_REPORTS_HTML);
+});
+
+// Serve my-reports clean URL
+app.get('/my-reports', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(MY_REPORTS_HTML);
 });
 
 // Serve all other HTML files from public folder with inline CSS
