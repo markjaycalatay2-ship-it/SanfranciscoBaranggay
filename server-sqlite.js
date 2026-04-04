@@ -1136,6 +1136,12 @@ const USER_APPROVAL_HTML = `<!DOCTYPE html>
             try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
             window.location.href = '/login.html';
         }
+    </script>
+</body>
+</html>`;
+
+// Resident Directory HTML - MINIMAL CLEAN VERSION
+const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
