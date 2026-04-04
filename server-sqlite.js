@@ -33,71 +33,475 @@ async function initializeDefaultAdmin() {
                 created_at: new Date().toISOString()
             });
             console.log('Default admin created in Firestore');
+        } else {
+            console.log('Default admin already exists');
         }
     } catch (error) {
         console.error('Error creating default admin:', error.message);
-        // Continue with in-memory fallback
     }
 }
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+// CSS Content Inline - Blue Theme
+const CSS_CONTENT = `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-// Serve static files (CSS, images, etc.)
-app.use(express.static('public'));
+:root {
+    --primary-bg: #f0f9ff;
+    --secondary-bg: #e0f2fe;
+    --card-bg: #ffffff;
+    --primary-blue: #0ea5e9;
+    --dark-blue: #0369a1;
+    --light-blue: #38bdf8;
+    --text-primary: #0c4a6e;
+    --text-secondary: #64748b;
+    --border-color: #bae6fd;
+    --hover-bg: #f1f5f9;
+}
 
-// Explicitly serve CSS for Render compatibility
-app.get('/style.css', (req, res) => {
-    const possiblePaths = [
-        path.join(__dirname, 'public', 'style.css'),
-        path.join(process.cwd(), 'public', 'style.css'),
-        './public/style.css',
-        'public/style.css'
-    ];
-    
-    for (const cssPath of possiblePaths) {
-        try {
-            if (fs.existsSync(cssPath)) {
-                const cssContent = fs.readFileSync(cssPath, 'utf8');
-                res.setHeader('Content-Type', 'text/css');
-                return res.send(cssContent);
-            }
-        } catch (err) {
-            // Try next path
-        }
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+.header {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: white;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-info span {
+    font-size: 0.9rem;
+}
+
+.layout-container {
+    display: flex;
+    min-height: calc(100vh - 70px);
+}
+
+.sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, var(--light-blue) 0%, var(--primary-blue) 100%);
+    padding: 1rem 0;
+    border-right: 3px solid var(--dark-blue);
+    box-shadow: 4px 0 12px rgba(14, 165, 233, 0.2);
+}
+
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar nav a {
+    color: #f0f9ff;
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    display: block;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+}
+
+.sidebar nav a:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-left-color: #7dd3fc;
+}
+
+.sidebar nav a.active {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border-left-color: #bae6fd;
+    font-weight: 600;
+}
+
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.card {
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+}
+
+.card h2 {
+    color: #0369a1;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+}
+
+.stat-card h3 {
+    color: #0284c7;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-card .stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #0369a1;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.3);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #f0f9ff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #bae6fd;
+}
+
+th {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+tr:hover {
+    background-color: #e0f2fe;
+}
+
+tr:nth-child(even) {
+    background-color: #f0f9ff;
+}
+
+tr:nth-child(even):hover {
+    background-color: #e0f2fe;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+    border: 1px solid #d97706;
+}
+
+.status-ongoing {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: white;
+    border: 1px solid #0369a1;
+}
+
+.status-resolved {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    border: 1px solid #15803d;
+}
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+}
+
+.auth-card {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(14, 165, 233, 0.3);
+    width: 100%;
+    max-width: 450px;
+}
+
+.auth-card h2 {
+    text-align: center;
+    color: #0369a1;
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.auth-card .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.auth-card .btn {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.auth-links {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.auth-links a {
+    color: #0369a1;
+    text-decoration: none;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.alert-info {
+    background-color: #e0f2fe;
+    color: #075985;
+    border: 1px solid #bae6fd;
+}
+
+@media (max-width: 768px) {
+    .layout-container {
+        flex-direction: column;
     }
-    res.status(404).send('CSS not found');
-});
+    
+    .sidebar {
+        width: 100%;
+        order: 2;
+    }
+    
+    .main-content {
+        order: 1;
+    }
+    
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+}
 
-// Serve login.html inline with embedded CSS
-app.get('/login.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(`<!DOCTYPE html>
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #7f8c8d;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+}
+
+.empty-state h3 {
+    margin-bottom: 1rem;
+    color: #95a5a6;
+}`;
+
+// HTML Pages with inlined CSS
+const LOGIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Barangay San Francisco</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root { --primary-bg: #f0f9ff; --primary-blue: #0ea5e9; --dark-blue: #0369a1; --text-primary: #0c4a6e; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--primary-bg); color: var(--text-primary); min-height: 100vh; }
-        .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); }
-        .auth-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(14, 165, 233, 0.15); width: 100%; max-width: 400px; }
-        .auth-card h2 { text-align: center; color: var(--dark-blue); margin-bottom: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        .form-group input { width: 100%; padding: 0.75rem; border: 2px solid #bae6fd; border-radius: 6px; font-size: 1rem; }
-        .form-group input:focus { outline: none; border-color: var(--primary-blue); }
-        .btn { width: 100%; padding: 0.875rem; background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%); color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
-        .btn:hover { transform: translateY(-2px); }
-        .auth-links { text-align: center; margin-top: 1rem; }
-        .auth-links a { color: var(--primary-blue); text-decoration: none; }
-        .alert { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
-        .alert-error { background: #fee2e2; color: #dc2626; }
-        .alert-success { background: #d1fae5; color: #059669; }
-    </style>
+    <style>${CSS_CONTENT}</style>
 </head>
 <body>
     <div class="auth-container">
@@ -113,7 +517,7 @@ app.get('/login.html', (req, res) => {
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn">Login</button>
+                <button type="submit" class="btn btn-primary">Login</button>
             </form>
             <div class="auth-links">
                 <p>Don't have an account? <a href="/register.html">Register here</a></p>
@@ -143,7 +547,112 @@ app.get('/login.html', (req, res) => {
         });
     </script>
 </body>
-</html>`);
+</html>`;
+
+const REGISTER_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <h2>Resident Registration</h2>
+            <div id="alert-container"></div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input type="text" id="full_name" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" min="1" max="120" required>
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label for="contact_number">Contact Number</label>
+                    <input type="tel" id="contact_number" name="contact_number" required>
+                </div>
+                <div class="form-group">
+                    <label for="address">Address (Purok)</label>
+                    <input type="text" id="address" name="address" placeholder="e.g., Purok 1" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Register</button>
+            </form>
+            <div class="auth-links">
+                <p>Already have an account? <a href="/login.html">Login here</a></p>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('Registration successful! Redirecting to login...', 'success');
+                    setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        });
+        function showAlert(message, type) {
+            document.getElementById('alert-container').innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { document.getElementById('alert-container').innerHTML = ''; }, 5000);
+        }
+    </script>
+</body>
+</html>`;
+
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+// Serve login.html inline with embedded CSS
+app.get('/login.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(LOGIN_HTML);
+});
+
+// Serve register.html inline with embedded CSS
+app.get('/register.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(REGISTER_HTML);
+});
+
+// Serve CSS directly from inline constant
+app.get('/style.css', (req, res) => {
+    res.setHeader('Content-Type', 'text/css');
+    res.send(CSS_CONTENT);
 });
 
 // Redirect root to login.html
@@ -151,7 +660,7 @@ app.get('/', (req, res) => {
     res.redirect('/login.html');
 });
 
-// Serve admin-dashboard.html
+// Serve admin-dashboard.html with inline CSS
 app.get('/admin-dashboard.html', (req, res) => {
     const possiblePaths = [
         path.join(__dirname, 'public', 'admin-dashboard.html'),
@@ -164,12 +673,8 @@ app.get('/admin-dashboard.html', (req, res) => {
         try {
             if (fs.existsSync(filePath)) {
                 let content = fs.readFileSync(filePath, 'utf8');
-                // Inline the CSS
-                const cssPath = path.join(path.dirname(filePath), 'style.css');
-                if (fs.existsSync(cssPath)) {
-                    const cssContent = fs.readFileSync(cssPath, 'utf8');
-                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
-                }
+                // Inline the CSS using the constant
+                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
                 res.setHeader('Content-Type', 'text/html');
                 return res.send(content);
             }
@@ -180,35 +685,7 @@ app.get('/admin-dashboard.html', (req, res) => {
     res.status(404).send('admin-dashboard.html not found');
 });
 
-// Serve register.html
-app.get('/register.html', (req, res) => {
-    const possiblePaths = [
-        path.join(__dirname, 'public', 'register.html'),
-        path.join(process.cwd(), 'public', 'register.html'),
-        './public/register.html',
-        'public/register.html'
-    ];
-    
-    for (const filePath of possiblePaths) {
-        try {
-            if (fs.existsSync(filePath)) {
-                let content = fs.readFileSync(filePath, 'utf8');
-                const cssPath = path.join(path.dirname(filePath), 'style.css');
-                if (fs.existsSync(cssPath)) {
-                    const cssContent = fs.readFileSync(cssPath, 'utf8');
-                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
-                }
-                res.setHeader('Content-Type', 'text/html');
-                return res.send(content);
-            }
-        } catch (err) {
-            // Try next path
-        }
-    }
-    res.status(404).send('register.html not found');
-});
-
-// Serve resident-dashboard.html
+// Serve resident-dashboard.html with inline CSS
 app.get('/resident-dashboard.html', (req, res) => {
     const possiblePaths = [
         path.join(__dirname, 'public', 'resident-dashboard.html'),
@@ -221,11 +698,7 @@ app.get('/resident-dashboard.html', (req, res) => {
         try {
             if (fs.existsSync(filePath)) {
                 let content = fs.readFileSync(filePath, 'utf8');
-                const cssPath = path.join(path.dirname(filePath), 'style.css');
-                if (fs.existsSync(cssPath)) {
-                    const cssContent = fs.readFileSync(cssPath, 'utf8');
-                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
-                }
+                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
                 res.setHeader('Content-Type', 'text/html');
                 return res.send(content);
             }
@@ -236,7 +709,7 @@ app.get('/resident-dashboard.html', (req, res) => {
     res.status(404).send('resident-dashboard.html not found');
 });
 
-// Serve all other HTML files from public folder
+// Serve all other HTML files from public folder with inline CSS
 app.get('/:page(*).html', (req, res) => {
     const page = req.params.page;
     const possiblePaths = [
@@ -249,7 +722,9 @@ app.get('/:page(*).html', (req, res) => {
     for (const filePath of possiblePaths) {
         try {
             if (fs.existsSync(filePath)) {
-                const content = fs.readFileSync(filePath, 'utf8');
+                let content = fs.readFileSync(filePath, 'utf8');
+                // Inline the CSS using the constant
+                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
                 res.setHeader('Content-Type', 'text/html');
                 return res.send(content);
             }
