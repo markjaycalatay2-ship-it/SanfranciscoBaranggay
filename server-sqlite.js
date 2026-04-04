@@ -1185,11 +1185,11 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
         </main>
     </div>
     <script>
-        // Initialize with visible status updates
-        document.getElementById('residentsContainer').innerHTML = '<div style="padding:20px;text-align:center;"><p>Initializing...</p></div>';
+        // Initialize
+        document.getElementById('residentsContainer').innerHTML = '<div style="padding:20px;text-align:center;"><p>Starting...</p></div>';
         
-        let allResidents = [];
-        let filteredResidents = [];
+        var allResidents = [];
+        var filteredResidents = [];
 
         function showAlert(message, type) {
             var container = document.getElementById('alert-container');
@@ -1197,50 +1197,58 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             setTimeout(function() { container.innerHTML = ''; }, 5000);
         }
 
-        async function loadUserInfo() {
-            try {
-                document.getElementById('userFullName').textContent = 'Loading...';
-                var response = await fetch('/api/user-info');
-                if (response.ok) {
-                    var user = await response.json();
+        function loadUserInfo() {
+            fetch('/api/user-info')
+                .then(function(response) {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Not authenticated');
+                })
+                .then(function(user) {
                     document.getElementById('userFullName').textContent = user.fullName || 'Admin';
-                } else {
+                })
+                .catch(function(error) {
                     document.getElementById('userFullName').textContent = 'Error';
-                }
-            } catch (error) {
-                document.getElementById('userFullName').textContent = 'Error';
-            }
+                });
         }
 
-        async function loadResidents() {
+        function loadResidents() {
             var container = document.getElementById('residentsContainer');
-            container.innerHTML = '<div style="padding:20px;text-align:center;"><p>Fetching residents from server...</p></div>';
+            container.innerHTML = '<div style="padding:20px;text-align:center;"><p>Fetching residents...</p></div>';
             
-            try {
-                var response = await fetch('/api/residents');
-                
-                if (!response.ok) {
-                    var errorText = await response.text();
-                    container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error: ' + response.status + '</h3><p>' + errorText + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
-                    return;
-                }
-                
-                allResidents = await response.json();
-                
-                if (!allResidents || allResidents.length === 0) {
-                    container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No Residents Found</h3><p>There are no registered residents in the database.</p></div>';
-                    return;
-                }
-                
-                filteredResidents = allResidents.slice();
-                displayResidents(filteredResidents);
-            } catch (error) {
-                container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error Loading Residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
-            }
+            fetch('/api/residents')
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.text().then(function(text) {
+                            throw new Error('Server error ' + response.status + ': ' + text);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    allResidents = data || [];
+                    
+                    if (allResidents.length === 0) {
+                        container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No Residents Found</h3><p>There are no registered residents in the database.</p></div>';
+                        return;
+                    }
+                    
+                    filteredResidents = allResidents.slice();
+                    displayResidents(filteredResidents);
+                })
+                .catch(function(error) {
+                    container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error Loading Residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
+                });
         }
 
         function displayResidents(residents) {
             var container = document.getElementById('residentsContainer');
+            
+            if (!residents || residents.length === 0) {
+                container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No residents found</h3><p>No residents match your search.</p></div>';
+                return;
+            }
             
             var html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
             
@@ -1262,24 +1270,26 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             container.innerHTML = html;
         }
 
-        async function deleteUser(userId, userName) {
+        function deleteUser(userId, userName) {
             if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
-            try {
-                var response = await fetch('/api/users/' + userId, {method: 'DELETE'});
-                var result = await response.json();
-                if (result.success) {
-                    showAlert(userName + ' deleted successfully', 'success');
-                    loadResidents();
-                } else {
-                    showAlert(result.message, 'error');
-                }
-            } catch (error) {
-                showAlert('Error deleting user', 'error');
-            }
+            
+            fetch('/api/users/' + userId, {method: 'DELETE'})
+                .then(function(response) { return response.json(); })
+                .then(function(result) {
+                    if (result.success) {
+                        showAlert(userName + ' deleted successfully', 'success');
+                        loadResidents();
+                    } else {
+                        showAlert(result.message, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    showAlert('Error deleting user', 'error');
+                });
         }
 
-        async function logout() {
-            try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
+        function logout() {
+            fetch('/logout', {method: 'POST'}).catch(function() {});
             window.location.href = '/login.html';
         }
 
@@ -1293,7 +1303,7 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             displayResidents(filteredResidents);
         });
 
-        // Load data
+        // Start loading
         loadUserInfo();
         loadResidents();
     </script>
