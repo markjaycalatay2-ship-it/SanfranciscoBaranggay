@@ -1178,75 +1178,78 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                 <div style="margin-bottom: 1.5rem;">
                     <input type="text" id="searchInput" placeholder="Search residents by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
-                <div id="residentsContainer">
-                    <div class="loading">Loading residents...</div>
-                </div>
+                <div id="residentsContainer"><div class="loading">Loading residents...</div></div>
             </div>
         </main>
     </div>
     <script>
-        alert('JavaScript is running!');
         let allResidents = [], filteredResidents = [];
-        
-        function loadUserInfo() {
-            fetch('/api/user-info')
-                .then(res => res.ok ? res.json() : Promise.reject())
-                .then(user => document.getElementById('userFullName').textContent = user.fullName)
-                .catch(() => document.getElementById('userFullName').textContent = 'Error');
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else { window.location.href = '/login.html'; }
+            } catch (error) { window.location.href = '/login.html'; }
         }
-        
-        function loadResidents() {
-            const container = document.getElementById('residentsContainer');
-            fetch('/api/residents')
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to load'))
-                .then(data => {
-                    allResidents = data || [];
+        async function loadResidents() {
+            try {
+                const response = await fetch('/api/residents');
+                if (response.ok) {
+                    allResidents = await response.json();
                     filteredResidents = [...allResidents];
                     displayResidents(filteredResidents);
-                })
-                .catch(() => container.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Failed to load residents</p></div>');
+                } else { showAlert('Failed to load residents', 'error'); }
+            } catch (error) { showAlert('An error occurred while loading residents', 'error'); }
         }
-        
-        function displayResidents(list) {
+        function displayResidents(residentsToDisplay) {
             const container = document.getElementById('residentsContainer');
-            if (!list || list.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>No residents</h3></div>';
+            if (residentsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>' + (allResidents.length === 0 ? 'No residents have registered yet.' : 'No residents match your search.') + '</p></div>';
                 return;
             }
-            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
-            list.forEach(r => {
+            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            residentsToDisplay.forEach(r => {
                 html += '<tr><td><strong>' + (r.full_name || 'N/A') + '</strong></td>';
                 html += '<td>' + (r.age || '-') + '</td>';
                 html += '<td>' + (r.gender || '-') + '</td>';
                 html += '<td>' + (r.username || '-') + '</td>';
+                html += '<td>' + (r.contact_number || '-') + '</td>';
+                html += '<td>' + (r.address || '-') + '</td>';
                 html += '<td><span class="status-badge status-' + (r.status || 'unknown') + '">' + (r.status || 'unknown') + '</span></td>';
-                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || '').replace(/'/g, "\\'") + '\')">Delete</button></td></tr>';
+                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || 'Unknown').replace(/'/g, "\\'") + '\')">Delete</button></td></tr>';
             });
             html += '</tbody></table></div>';
             container.innerHTML = html;
         }
-        
-        function deleteUser(id, name) {
-            if (!confirm('Delete ' + name + '?')) return;
-            fetch('/api/users/' + id, {method: 'DELETE'})
-                .then(r => r.json())
-                .then(res => { if (res.success) loadResidents(); });
+        async function deleteUser(userId, userName) {
+            if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
+            try {
+                const response = await fetch('/api/users/' + userId, {method: 'DELETE'});
+                const result = await response.json();
+                if (result.success) { showAlert(userName + ' deleted successfully', 'success'); loadResidents(); }
+                else { showAlert(result.message, 'error'); }
+            } catch (error) { showAlert('An error occurred while deleting the user', 'error'); }
         }
-        
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+            setTimeout(() => { container.innerHTML = ''; }, 5000);
+        }
         function logout() {
             fetch('/logout', {method: 'POST'}).catch(() => {});
             window.location.href = '/login.html';
         }
-        
-        document.getElementById('searchInput').addEventListener('input', e => {
-            const term = e.target.value.toLowerCase();
-            filteredResidents = allResidents.filter(r => 
-                (r.full_name || '').toLowerCase().includes(term) ||
-                (r.username || '').toLowerCase().includes(term)
-            );
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredResidents = allResidents.filter(r => {
+                return (r.full_name && r.full_name.toLowerCase().includes(searchTerm)) ||
+                       (r.username && r.username.toLowerCase().includes(searchTerm)) ||
+                       (r.address && r.address.toLowerCase().includes(searchTerm));
+            });
             displayResidents(filteredResidents);
         });
-        
         document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadResidents(); });
     </script>
 </body>
@@ -1698,16 +1701,30 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html
+// Serve resident-directory.html by reading file and injecting CSS
 app.get('/resident-directory.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    const fs = require('fs');
+    const path = require('path');
+    
+    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading resident-directory.html:', err);
+            return res.status(500).send('Error loading page: ' + err.message);
+        }
+        
+        // Inject CSS inline
+        const htmlWithCSS = data.replace(
+            '<link rel="stylesheet" href="style.css">',
+            '<style>' + CSS_CONTENT + '</style>'
+        );
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(htmlWithCSS);
+    });
 });
 
-// Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    res.redirect('/resident-directory.html');
 });
 
 // Serve transaction-history.html
