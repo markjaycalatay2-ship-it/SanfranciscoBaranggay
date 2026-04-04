@@ -49,17 +49,28 @@ app.use(express.static('public'));
 
 // Explicitly serve CSS for Render compatibility
 app.get('/style.css', (req, res) => {
-    try {
-        const cssPath = path.join(__dirname, 'public', 'style.css');
-        const cssContent = fs.readFileSync(cssPath, 'utf8');
-        res.setHeader('Content-Type', 'text/css');
-        res.send(cssContent);
-    } catch (err) {
-        res.status(404).send('CSS not found');
+    const possiblePaths = [
+        path.join(__dirname, 'public', 'style.css'),
+        path.join(process.cwd(), 'public', 'style.css'),
+        './public/style.css',
+        'public/style.css'
+    ];
+    
+    for (const cssPath of possiblePaths) {
+        try {
+            if (fs.existsSync(cssPath)) {
+                const cssContent = fs.readFileSync(cssPath, 'utf8');
+                res.setHeader('Content-Type', 'text/css');
+                return res.send(cssContent);
+            }
+        } catch (err) {
+            // Try next path
+        }
     }
+    res.status(404).send('CSS not found');
 });
 
-// Serve login.html inline (for Vercel compatibility, but also works on Render)
+// Serve login.html inline with embedded CSS
 app.get('/login.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(`<!DOCTYPE html>
@@ -68,7 +79,25 @@ app.get('/login.html', (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Barangay San Francisco</title>
-    <link rel="stylesheet" href="/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary-bg: #f0f9ff; --primary-blue: #0ea5e9; --dark-blue: #0369a1; --text-primary: #0c4a6e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--primary-bg); color: var(--text-primary); min-height: 100vh; }
+        .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); }
+        .auth-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(14, 165, 233, 0.15); width: 100%; max-width: 400px; }
+        .auth-card h2 { text-align: center; color: var(--dark-blue); margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-group input { width: 100%; padding: 0.75rem; border: 2px solid #bae6fd; border-radius: 6px; font-size: 1rem; }
+        .form-group input:focus { outline: none; border-color: var(--primary-blue); }
+        .btn { width: 100%; padding: 0.875rem; background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%); color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-2px); }
+        .auth-links { text-align: center; margin-top: 1rem; }
+        .auth-links a { color: var(--primary-blue); text-decoration: none; }
+        .alert { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+        .alert-error { background: #fee2e2; color: #dc2626; }
+        .alert-success { background: #d1fae5; color: #059669; }
+    </style>
 </head>
 <body>
     <div class="auth-container">
@@ -84,7 +113,7 @@ app.get('/login.html', (req, res) => {
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Login</button>
+                <button type="submit" class="btn">Login</button>
             </form>
             <div class="auth-links">
                 <p>Don't have an account? <a href="/register.html">Register here</a></p>
@@ -124,15 +153,26 @@ app.get('/', (req, res) => {
 
 // Serve all other HTML files from public folder
 app.get('/:page(*).html', (req, res) => {
-    try {
-        const page = req.params.page;
-        const filePath = path.join(__dirname, 'public', `${page}.html`);
-        const content = fs.readFileSync(filePath, 'utf8');
-        res.setHeader('Content-Type', 'text/html');
-        res.send(content);
-    } catch (err) {
-        res.status(404).send(`Page not found: ${req.params.page}.html`);
+    const page = req.params.page;
+    const possiblePaths = [
+        path.join(__dirname, 'public', `${page}.html`),
+        path.join(process.cwd(), 'public', `${page}.html`),
+        `./public/${page}.html`,
+        `public/${page}.html`
+    ];
+    
+    for (const filePath of possiblePaths) {
+        try {
+            if (fs.existsSync(filePath)) {
+                const content = fs.readFileSync(filePath, 'utf8');
+                res.setHeader('Content-Type', 'text/html');
+                return res.send(content);
+            }
+        } catch (err) {
+            // Try next path
+        }
     }
+    res.status(404).send(`Page not found: ${page}.html`);
 });
 
 app.use(session({
