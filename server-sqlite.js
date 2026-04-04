@@ -1680,16 +1680,34 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html
+// Serve resident-directory.html by reading file and injecting CSS
 app.get('/resident-directory.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    const fs = require('fs');
+    const path = require('path');
+    
+    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading resident-directory.html:', err);
+            // Fallback to inline
+            res.setHeader('Content-Type', 'text/html');
+            res.send(RESIDENT_DIRECTORY_HTML);
+            return;
+        }
+        
+        // Inject CSS inline, replacing the link tag
+        const htmlWithCSS = data.replace(
+            /<link rel="stylesheet" href="style.css">/,
+            '<style>' + CSS_CONTENT + '</style>'
+        );
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.send(htmlWithCSS);
+    });
 });
 
-// Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    res.redirect('/resident-directory.html');
 });
 
 // Serve transaction-history.html
