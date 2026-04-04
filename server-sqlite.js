@@ -1178,112 +1178,124 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                 <div style="margin-bottom: 1.5rem;">
                     <input type="text" id="searchInput" placeholder="Search residents by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
-                <div id="residentsContainer"><div class="loading">Loading residents...</div></div>
+                <div id="residentsContainer">
+                    <div class="loading">Loading residents...</div>
+                </div>
             </div>
         </main>
     </div>
     <script>
-        let allResidents = [], filteredResidents = [];
+        // Initialize with visible status updates
+        document.getElementById('residentsContainer').innerHTML = '<div style="padding:20px;text-align:center;"><p>Initializing...</p></div>';
         
+        let allResidents = [];
+        let filteredResidents = [];
+
         function showAlert(message, type) {
-            const container = document.getElementById('alert-container');
+            var container = document.getElementById('alert-container');
             container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
-            setTimeout(() => container.innerHTML = '', 5000);
+            setTimeout(function() { container.innerHTML = ''; }, 5000);
         }
-        
+
         async function loadUserInfo() {
             try {
-                const response = await fetch('/api/user-info');
+                document.getElementById('userFullName').textContent = 'Loading...';
+                var response = await fetch('/api/user-info');
                 if (response.ok) {
-                    const user = await response.json();
-                    document.getElementById('userFullName').textContent = user.fullName;
-                } else { 
-                    window.location.href = '/login.html'; 
+                    var user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName || 'Admin';
+                } else {
+                    document.getElementById('userFullName').textContent = 'Error';
                 }
-            } catch (error) { 
-                window.location.href = '/login.html'; 
+            } catch (error) {
+                document.getElementById('userFullName').textContent = 'Error';
             }
         }
-        
+
         async function loadResidents() {
-            const container = document.getElementById('residentsContainer');
+            var container = document.getElementById('residentsContainer');
+            container.innerHTML = '<div style="padding:20px;text-align:center;"><p>Fetching residents from server...</p></div>';
+            
             try {
-                console.log('Fetching residents...');
-                const response = await fetch('/api/residents');
-                console.log('Response status:', response.status);
+                var response = await fetch('/api/residents');
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error('Server error: ' + errorText);
+                    var errorText = await response.text();
+                    container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error: ' + response.status + '</h3><p>' + errorText + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
+                    return;
                 }
                 
                 allResidents = await response.json();
-                console.log('Residents loaded:', allResidents.length, allResidents);
-                filteredResidents = [...allResidents];
+                
+                if (!allResidents || allResidents.length === 0) {
+                    container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No Residents Found</h3><p>There are no registered residents in the database.</p></div>';
+                    return;
+                }
+                
+                filteredResidents = allResidents.slice();
                 displayResidents(filteredResidents);
             } catch (error) {
-                console.error('Error loading residents:', error);
-                container.innerHTML = '<div class="empty-state"><h3>Error loading residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
+                container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error Loading Residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
             }
         }
-        
-        function displayResidents(residentsToDisplay) {
-            const container = document.getElementById('residentsContainer');
-            if (!residentsToDisplay || residentsToDisplay.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>There are no registered residents in the system.</p></div>';
-                return;
+
+        function displayResidents(residents) {
+            var container = document.getElementById('residentsContainer');
+            
+            var html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            
+            for (var i = 0; i < residents.length; i++) {
+                var r = residents[i];
+                html += '<tr>';
+                html += '<td><strong>' + (r.full_name || 'N/A') + '</strong></td>';
+                html += '<td>' + (r.age || '-') + '</td>';
+                html += '<td>' + (r.gender || '-') + '</td>';
+                html += '<td>' + (r.username || '-') + '</td>';
+                html += '<td>' + (r.contact_number || '-') + '</td>';
+                html += '<td>' + (r.address || '-') + '</td>';
+                html += '<td><span class="status-badge status-' + (r.status || 'unknown') + '">' + (r.status || 'unknown') + '</span></td>';
+                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || 'Unknown').replace(/'/g, "\\'") + '\')">Delete</button></td>';
+                html += '</tr>';
             }
             
-            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>';
-            residentsToDisplay.forEach(resident => {
-                html += '<tr>';
-                html += '<td><strong>' + (resident.full_name || 'N/A') + '</strong></td>';
-                html += '<td>' + (resident.age || '-') + '</td>';
-                html += '<td>' + (resident.gender || '-') + '</td>';
-                html += '<td>' + (resident.username || '-') + '</td>';
-                html += '<td>' + (resident.contact_number || '-') + '</td>';
-                html += '<td>' + (resident.address || '-') + '</td>';
-                html += '<td><span class="status-badge status-' + (resident.status || 'unknown') + '">' + (resident.status || 'unknown') + '</span></td>';
-                html += '<td>' + (resident.last_login ? new Date(resident.last_login).toLocaleDateString() : 'Never') + '</td>';
-                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + resident.id + ', \'' + (resident.full_name || 'Unknown') + '\')">Delete</button></td>';
-                html += '</tr>';
-            });
             html += '</tbody></table></div>';
             container.innerHTML = html;
         }
-        
+
         async function deleteUser(userId, userName) {
             if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
             try {
-                const response = await fetch('/api/users/' + userId, {method: 'DELETE'});
-                const result = await response.json();
-                if (result.success) { 
-                    showAlert(userName + ' deleted successfully', 'success'); 
-                    loadResidents(); 
-                } else { 
-                    showAlert(result.message, 'error'); 
+                var response = await fetch('/api/users/' + userId, {method: 'DELETE'});
+                var result = await response.json();
+                if (result.success) {
+                    showAlert(userName + ' deleted successfully', 'success');
+                    loadResidents();
+                } else {
+                    showAlert(result.message, 'error');
                 }
-            } catch (error) { 
-                showAlert('An error occurred while deleting the user', 'error'); 
+            } catch (error) {
+                showAlert('Error deleting user', 'error');
             }
         }
-        
+
         async function logout() {
             try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
             window.location.href = '/login.html';
         }
-        
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            filteredResidents = allResidents.filter(resident => {
-                return (resident.full_name && resident.full_name.toLowerCase().includes(searchTerm)) ||
-                       (resident.username && resident.username.toLowerCase().includes(searchTerm)) ||
-                       (resident.address && resident.address.toLowerCase().includes(searchTerm));
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            var searchTerm = e.target.value.toLowerCase();
+            filteredResidents = allResidents.filter(function(r) {
+                return (r.full_name && r.full_name.toLowerCase().indexOf(searchTerm) !== -1) ||
+                       (r.username && r.username.toLowerCase().indexOf(searchTerm) !== -1) ||
+                       (r.address && r.address.toLowerCase().indexOf(searchTerm) !== -1);
             });
             displayResidents(filteredResidents);
         });
-        
-        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadResidents(); });
+
+        // Load data
+        loadUserInfo();
+        loadResidents();
     </script>
 </body>
 </html>`;
@@ -1734,17 +1746,30 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html
-app.get('/resident-directory.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
-});
+// Serve resident-directory.html with CSS injection
+function serveResidentDirectory(req, res) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading resident-directory.html:', err);
+            return res.status(500).send('Error loading page');
+        }
+        
+        // Inject CSS inline
+        const htmlWithCSS = data.replace(
+            '<link rel="stylesheet" href="style.css">',
+            '<style>' + CSS_CONTENT + '</style>'
+        );
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(htmlWithCSS);
+    });
+}
 
-// Serve resident-directory clean URL
-app.get('/resident-directory', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
-});
+app.get('/resident-directory.html', serveResidentDirectory);
+app.get('/resident-directory', serveResidentDirectory);
 
 // Serve transaction-history.html
 app.get('/transaction-history.html', (req, res) => {
@@ -1982,10 +2007,6 @@ app.get('/my-reports', isAuthenticated, (req, res) => {
 
 app.get('/manage-reports', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(__dirname + '/public/manage-reports.html');
-});
-
-app.get('/resident-directory', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/resident-directory.html');
 });
 
 app.get('/transaction-history', isAuthenticated, isAdmin, (req, res) => {
