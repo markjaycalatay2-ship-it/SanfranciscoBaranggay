@@ -1185,9 +1185,6 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
         </main>
     </div>
     <script>
-        // Initialize
-        document.getElementById('residentsContainer').innerHTML = '<div style="padding:20px;text-align:center;"><p>Starting...</p></div>';
-        
         var allResidents = [];
         var filteredResidents = [];
 
@@ -1303,9 +1300,7 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             displayResidents(filteredResidents);
         });
 
-        // Start loading
-        loadUserInfo();
-        loadResidents();
+        document.addEventListener('DOMContentLoaded', function() { loadUserInfo(); loadResidents(); });
     </script>
 </body>
 </html>`;
