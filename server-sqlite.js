@@ -1189,7 +1189,12 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">Loading...</p>';
             
             fetch('/api/residents')
-                .then(function(r) { return r.json(); })
+                .then(function(r) { 
+                    if (!r.ok) {
+                        throw new Error('Server returned ' + r.status + ' - ' + r.statusText);
+                    }
+                    return r.json(); 
+                })
                 .then(function(data) {
                     if (!data || data.length === 0) {
                         document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">No residents found</p>';
@@ -1212,7 +1217,7 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                     document.getElementById('residentsContainer').innerHTML = html;
                 })
                 .catch(function(err) {
-                    document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;color:red;">Error: ' + err.message + '</p>';
+                    document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;color:red;"><strong>Error:</strong> ' + err.message + '<br><br><button onclick="location.reload()" style="padding:10px 20px;background:#0077b6;color:white;border:none;border-radius:4px;cursor:pointer;">Retry</button></p>';
                 });
         });
         
