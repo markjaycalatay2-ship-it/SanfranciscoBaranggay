@@ -1188,16 +1188,25 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">Loading...</p>';
             
-            fetch('/api/test-residents')
+            fetch('/api/residents')
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (!data || data.length === 0) {
                         document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">No residents found</p>';
                         return;
                     }
-                    var html = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#0077b6;color:white;"><th>Name</th><th>Username</th><th>Status</th><th>Action</th></tr>';
+                    var html = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#0077b6;color:white;"><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Action</th></tr>';
                     data.forEach(function(u) {
-                        html += '<tr style="border-bottom:1px solid #ddd;"><td>' + (u.full_name || '-') + '</td><td>' + (u.username || '-') + '</td><td>' + (u.status || '-') + '</td><td><button onclick="deleteUser(' + u.id + ')" style="background:red;color:white;border:none;padding:5px 10px;cursor:pointer;">Delete</button></td></tr>';
+                        html += '<tr style="border-bottom:1px solid #ddd;">';
+                        html += '<td><strong>' + (u.full_name || 'N/A') + '</strong></td>';
+                        html += '<td>' + (u.age || '-') + '</td>';
+                        html += '<td>' + (u.gender || '-') + '</td>';
+                        html += '<td>' + (u.username || '-') + '</td>';
+                        html += '<td>' + (u.contact_number || '-') + '</td>';
+                        html += '<td>' + (u.address || '-') + '</td>';
+                        html += '<td><span class="status-badge status-' + (u.status || 'unknown') + '">' + (u.status || 'unknown') + '</span></td>';
+                        html += '<td><button onclick="deleteUser(' + u.id + ', \'' + (u.full_name || 'Unknown').replace(/'/g, "\\'") + '\')" style="background:red;color:white;border:none;padding:5px 10px;cursor:pointer;">Delete</button></td>';
+                        html += '</tr>';
                     });
                     html += '</table>';
                     document.getElementById('residentsContainer').innerHTML = html;
