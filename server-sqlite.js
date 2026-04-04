@@ -1209,11 +1209,12 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                 container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>' + (allResidents.length === 0 ? 'No residents have registered yet.' : 'No residents match your search.') + '</p></div>';
                 return;
             }
-            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact Number</th><th>Address</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>';
+            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact Number</th><th>Address</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>';
             residentsToDisplay.forEach(resident => {
                 html += '<tr><td><strong>' + resident.full_name + '</strong></td>';
                 html += '<td>' + resident.age + '</td><td>' + resident.gender + '</td><td>' + resident.username + '</td>';
                 html += '<td>' + resident.contact_number + '</td><td>' + resident.address + '</td>';
+                html += '<td><span class="status-badge status-' + (resident.status || 'unknown') + '">' + (resident.status || 'unknown') + '</span></td>';
                 html += '<td>' + (resident.last_login ? new Date(resident.last_login).toLocaleDateString() : 'Never') + '</td>';
                 html += '<td><div class="action-buttons"><button class="btn btn-sm btn-danger" onclick="deleteUser(' + resident.id + ', \'' + resident.full_name + '\')">Delete</button></div></td></tr>';
             });
@@ -2150,8 +2151,10 @@ app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {
         const users = await getCollection('users');
         console.log('DEBUG: Total users fetched:', users.length);
         console.log('DEBUG: All users:', users.map(u => ({ id: u.id, username: u.username, role: u.role, status: u.status })));
+        
+        // Show ALL residents (including pending, approved, rejected)
         const residents = users
-            .filter(u => u.role === 'resident' && u.status === 'approved')
+            .filter(u => u.role === 'resident')  // Remove role check only
             .map(u => ({
                 id: u.id,
                 full_name: u.full_name,
@@ -2160,9 +2163,10 @@ app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {
                 username: u.username,
                 last_login: u.last_login,
                 contact_number: u.contact_number,
-                address: u.address
+                address: u.address,
+                status: u.status || 'unknown'  // Include status
             }));
-        console.log('DEBUG: Filtered residents:', residents.length);
+        console.log('DEBUG: All residents (any status):', residents.length);
         res.json(residents);
     } catch (error) {
         console.error('Error fetching residents:', error.message);
