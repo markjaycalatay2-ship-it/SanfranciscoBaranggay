@@ -633,6 +633,249 @@ const REGISTER_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Admin Dashboard HTML with embedded CSS
+const ADMIN_DASHBOARD_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/admin-dashboard.html" class="active">Dashboard</a>
+                <a href="/manage-reports.html">Manage Reports</a>
+                <a href="/resident-directory.html">Resident Directory</a>
+                <a href="/user-approval.html">User Approval</a>
+                <a href="/transaction-history.html">Transaction History</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Admin Dashboard</h2>
+                <p>Overview of the Barangay San Francisco Resident Report System.</p>
+            </div>
+            <div class="stats-container">
+                <div class="stat-card"><h3>Total Reports</h3><div class="stat-number" id="totalReports">0</div></div>
+                <div class="stat-card"><h3>Pending Reports</h3><div class="stat-number" id="pendingReports">0</div></div>
+                <div class="stat-card"><h3>Ongoing Reports</h3><div class="stat-number" id="ongoingReports">0</div></div>
+                <div class="stat-card"><h3>Resolved Reports</h3><div class="stat-number" id="resolvedReports">0</div></div>
+                <div class="stat-card"><h3>Approved Users</h3><div class="stat-number" id="approvedUsers">0</div></div>
+            </div>
+            <div class="card">
+                <h2>Recent Reports</h2>
+                <div id="recentReports"><div class="loading">Loading recent reports...</div></div>
+            </div>
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="window.location.href='/manage-reports.html'">Manage All Reports</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='/resident-directory.html'">View Residents</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='/transaction-history.html'">View Activity Logs</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                window.location.href = '/login.html';
+            }
+        }
+        async function loadStatistics() {
+            try {
+                const reportsResponse = await fetch('/api/reports');
+                if (reportsResponse.ok) {
+                    const reports = await reportsResponse.json();
+                    document.getElementById('totalReports').textContent = reports.length;
+                    document.getElementById('pendingReports').textContent = reports.filter(r => r.status === 'pending').length;
+                    document.getElementById('ongoingReports').textContent = reports.filter(r => r.status === 'ongoing').length;
+                    document.getElementById('resolvedReports').textContent = reports.filter(r => r.status === 'resolved').length;
+                }
+                const usersResponse = await fetch('/api/users');
+                if (usersResponse.ok) {
+                    const users = await usersResponse.json();
+                    document.getElementById('approvedUsers').textContent = users.filter(u => u.status === 'approved' && u.role === 'resident').length;
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        async function loadRecentReports() {
+            try {
+                const response = await fetch('/api/reports');
+                if (response.ok) {
+                    const reports = await response.json();
+                    displayRecentReports(reports.slice(0, 5));
+                }
+            } catch (error) {
+                document.getElementById('recentReports').innerHTML = '<div class="empty-state"><p>Error loading reports</p></div>';
+            }
+        }
+        function displayRecentReports(reports) {
+            const container = document.getElementById('recentReports');
+            if (reports.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No reports yet</h3><p>No reports have been submitted by residents.</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Description</th><th>Location</th><th>Date</th><th>Status</th></tr></thead><tbody>';
+            reports.forEach(report => {
+                html += '<tr><td>' + report.description.substring(0, 50) + (report.description.length > 50 ? '...' : '') + '<br><small style="color: #7f8c8d;">by @' + (report.username || 'Unknown') + '</small></td>';
+                html += '<td>' + report.location + '</td>';
+                html += '<td>' + new Date(report.created_at).toLocaleDateString() + '</td>';
+                html += '<td><span class="status-badge status-' + report.status + '">' + report.status + '</span></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        async function logout() {
+            try {
+                await fetch('/logout', { method: 'POST' });
+            } catch (error) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadStatistics();
+            loadRecentReports();
+        });
+    </script>
+</body>
+</html>`;
+
+// Resident Dashboard HTML with embedded CSS
+const RESIDENT_DASHBOARD_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Dashboard - Barangay San Francisco</title>
+    <style>${CSS_CONTENT}</style>
+</head>
+<body>
+    <header class="header">
+        <h1>Barangay San Francisco Resident Report System</h1>
+        <div class="user-info">
+            <span>Welcome, <span id="userFullName">Loading...</span></span>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+        </div>
+    </header>
+    <div class="layout-container">
+        <aside class="sidebar">
+            <nav>
+                <a href="/resident-dashboard.html" class="active">Dashboard</a>
+                <a href="/new-report.html">New Report</a>
+                <a href="/my-reports.html">My Reports</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="card">
+                <h2>Resident Dashboard</h2>
+                <p>Welcome to the Barangay Complaint and Incident Report Monitoring System. You can submit new reports and track the status of your existing reports.</p>
+            </div>
+            <div class="stats-container">
+                <div class="stat-card"><h3>Total Reports</h3><div class="stat-number" id="totalReports">0</div></div>
+                <div class="stat-card"><h3>Pending</h3><div class="stat-number" id="pendingReports">0</div></div>
+                <div class="stat-card"><h3>Ongoing</h3><div class="stat-number" id="ongoingReports">0</div></div>
+                <div class="stat-card"><h3>Resolved</h3><div class="stat-number" id="resolvedReports">0</div></div>
+            </div>
+            <div class="card">
+                <h2>Recent Reports</h2>
+                <div id="recentReports"><div class="loading">Loading recent reports...</div></div>
+            </div>
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="window.location.href='/new-report.html'">Submit New Report</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='/my-reports.html'">View All Reports</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let currentUserId = null;
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUserId = user.userId;
+                    document.getElementById('userFullName').textContent = user.fullName;
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                window.location.href = '/login.html';
+            }
+        }
+        async function loadStatistics() {
+            try {
+                const userReportsResponse = await fetch('/api/my-reports');
+                if (userReportsResponse.ok) {
+                    const userReports = await userReportsResponse.json();
+                    document.getElementById('totalReports').textContent = userReports.length;
+                    document.getElementById('pendingReports').textContent = userReports.filter(r => r.status === 'pending').length;
+                    document.getElementById('ongoingReports').textContent = userReports.filter(r => r.status === 'ongoing').length;
+                    document.getElementById('resolvedReports').textContent = userReports.filter(r => r.status === 'resolved').length;
+                }
+                const allReportsResponse = await fetch('/api/reports');
+                if (allReportsResponse.ok) {
+                    const allReports = await allReportsResponse.json();
+                    displayRecentReports(allReports.slice(0, 5));
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        function displayRecentReports(reports) {
+            const container = document.getElementById('recentReports');
+            if (reports.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No reports yet</h3><p>No reports have been submitted by residents yet.</p></div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>Description</th><th>Location</th><th>Date</th><th>Status</th></tr></thead><tbody>';
+            reports.forEach(report => {
+                const isOwnReport = report.user_id === currentUserId;
+                html += '<tr><td>' + report.description.substring(0, 50) + (report.description.length > 50 ? '...' : '') + '<br><small style="color: #7f8c8d;">by @' + (report.username || 'Unknown') + (isOwnReport ? ' (You)' : '') + '</small></td>';
+                html += '<td>' + report.location + '</td>';
+                html += '<td>' + new Date(report.created_at).toLocaleDateString() + '</td>';
+                html += '<td><span class="status-badge status-' + report.status + '">' + report.status + '</span></td></tr>';
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        async function logout() {
+            try {
+                await fetch('/logout', { method: 'POST' });
+            } catch (error) {}
+            window.location.href = '/login.html';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadStatistics();
+        });
+    </script>
+</body>
+</html>`;
+
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -660,53 +903,16 @@ app.get('/', (req, res) => {
     res.redirect('/login.html');
 });
 
-// Serve admin-dashboard.html with inline CSS
+// Serve admin-dashboard.html inline with embedded CSS
 app.get('/admin-dashboard.html', (req, res) => {
-    const possiblePaths = [
-        path.join(__dirname, 'public', 'admin-dashboard.html'),
-        path.join(process.cwd(), 'public', 'admin-dashboard.html'),
-        './public/admin-dashboard.html',
-        'public/admin-dashboard.html'
-    ];
-    
-    for (const filePath of possiblePaths) {
-        try {
-            if (fs.existsSync(filePath)) {
-                let content = fs.readFileSync(filePath, 'utf8');
-                // Inline the CSS using the constant
-                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
-                res.setHeader('Content-Type', 'text/html');
-                return res.send(content);
-            }
-        } catch (err) {
-            // Try next path
-        }
-    }
-    res.status(404).send('admin-dashboard.html not found');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(ADMIN_DASHBOARD_HTML);
 });
 
-// Serve resident-dashboard.html with inline CSS
+// Serve resident-dashboard.html inline with embedded CSS
 app.get('/resident-dashboard.html', (req, res) => {
-    const possiblePaths = [
-        path.join(__dirname, 'public', 'resident-dashboard.html'),
-        path.join(process.cwd(), 'public', 'resident-dashboard.html'),
-        './public/resident-dashboard.html',
-        'public/resident-dashboard.html'
-    ];
-    
-    for (const filePath of possiblePaths) {
-        try {
-            if (fs.existsSync(filePath)) {
-                let content = fs.readFileSync(filePath, 'utf8');
-                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
-                res.setHeader('Content-Type', 'text/html');
-                return res.send(content);
-            }
-        } catch (err) {
-            // Try next path
-        }
-    }
-    res.status(404).send('resident-dashboard.html not found');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DASHBOARD_HTML);
 });
 
 // Serve all other HTML files from public folder with inline CSS
