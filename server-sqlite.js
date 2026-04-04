@@ -1185,122 +1185,69 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
         </main>
     </div>
     <script>
-        var allResidents = [];
-        var filteredResidents = [];
-
-        function showAlert(message, type) {
-            var container = document.getElementById('alert-container');
-            container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
-            setTimeout(function() { container.innerHTML = ''; }, 5000);
-        }
-
+        alert('JavaScript is running!');
+        let allResidents = [], filteredResidents = [];
+        
         function loadUserInfo() {
             fetch('/api/user-info')
-                .then(function(response) {
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    throw new Error('Not authenticated');
-                })
-                .then(function(user) {
-                    document.getElementById('userFullName').textContent = user.fullName || 'Admin';
-                })
-                .catch(function(error) {
-                    document.getElementById('userFullName').textContent = 'Error';
-                });
+                .then(res => res.ok ? res.json() : Promise.reject())
+                .then(user => document.getElementById('userFullName').textContent = user.fullName)
+                .catch(() => document.getElementById('userFullName').textContent = 'Error');
         }
-
+        
         function loadResidents() {
-            var container = document.getElementById('residentsContainer');
-            container.innerHTML = '<div style="padding:20px;text-align:center;"><p>Fetching residents...</p></div>';
-            
+            const container = document.getElementById('residentsContainer');
             fetch('/api/residents')
-                .then(function(response) {
-                    if (!response.ok) {
-                        return response.text().then(function(text) {
-                            throw new Error('Server error ' + response.status + ': ' + text);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(function(data) {
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to load'))
+                .then(data => {
                     allResidents = data || [];
-                    
-                    if (allResidents.length === 0) {
-                        container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No Residents Found</h3><p>There are no registered residents in the database.</p></div>';
-                        return;
-                    }
-                    
-                    filteredResidents = allResidents.slice();
+                    filteredResidents = [...allResidents];
                     displayResidents(filteredResidents);
                 })
-                .catch(function(error) {
-                    container.innerHTML = '<div style="padding:20px;text-align:center;color:red;"><h3>Error Loading Residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
-                });
+                .catch(() => container.innerHTML = '<div class="empty-state"><h3>Error</h3><p>Failed to load residents</p></div>');
         }
-
-        function displayResidents(residents) {
-            var container = document.getElementById('residentsContainer');
-            
-            if (!residents || residents.length === 0) {
-                container.innerHTML = '<div style="padding:20px;text-align:center;"><h3>No residents found</h3><p>No residents match your search.</p></div>';
+        
+        function displayResidents(list) {
+            const container = document.getElementById('residentsContainer');
+            if (!list || list.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No residents</h3></div>';
                 return;
             }
-            
-            var html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
-            
-            for (var i = 0; i < residents.length; i++) {
-                var r = residents[i];
-                html += '<tr>';
-                html += '<td><strong>' + (r.full_name || 'N/A') + '</strong></td>';
+            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            list.forEach(r => {
+                html += '<tr><td><strong>' + (r.full_name || 'N/A') + '</strong></td>';
                 html += '<td>' + (r.age || '-') + '</td>';
                 html += '<td>' + (r.gender || '-') + '</td>';
                 html += '<td>' + (r.username || '-') + '</td>';
-                html += '<td>' + (r.contact_number || '-') + '</td>';
-                html += '<td>' + (r.address || '-') + '</td>';
                 html += '<td><span class="status-badge status-' + (r.status || 'unknown') + '">' + (r.status || 'unknown') + '</span></td>';
-                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || 'Unknown').replace(/'/g, "\\'") + '\')">Delete</button></td>';
-                html += '</tr>';
-            }
-            
+                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || '').replace(/'/g, "\\'") + '\')">Delete</button></td></tr>';
+            });
             html += '</tbody></table></div>';
             container.innerHTML = html;
         }
-
-        function deleteUser(userId, userName) {
-            if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
-            
-            fetch('/api/users/' + userId, {method: 'DELETE'})
-                .then(function(response) { return response.json(); })
-                .then(function(result) {
-                    if (result.success) {
-                        showAlert(userName + ' deleted successfully', 'success');
-                        loadResidents();
-                    } else {
-                        showAlert(result.message, 'error');
-                    }
-                })
-                .catch(function(error) {
-                    showAlert('Error deleting user', 'error');
-                });
+        
+        function deleteUser(id, name) {
+            if (!confirm('Delete ' + name + '?')) return;
+            fetch('/api/users/' + id, {method: 'DELETE'})
+                .then(r => r.json())
+                .then(res => { if (res.success) loadResidents(); });
         }
-
+        
         function logout() {
-            fetch('/logout', {method: 'POST'}).catch(function() {});
+            fetch('/logout', {method: 'POST'}).catch(() => {});
             window.location.href = '/login.html';
         }
-
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            var searchTerm = e.target.value.toLowerCase();
-            filteredResidents = allResidents.filter(function(r) {
-                return (r.full_name && r.full_name.toLowerCase().indexOf(searchTerm) !== -1) ||
-                       (r.username && r.username.toLowerCase().indexOf(searchTerm) !== -1) ||
-                       (r.address && r.address.toLowerCase().indexOf(searchTerm) !== -1);
-            });
+        
+        document.getElementById('searchInput').addEventListener('input', e => {
+            const term = e.target.value.toLowerCase();
+            filteredResidents = allResidents.filter(r => 
+                (r.full_name || '').toLowerCase().includes(term) ||
+                (r.username || '').toLowerCase().includes(term)
+            );
             displayResidents(filteredResidents);
         });
-
-        document.addEventListener('DOMContentLoaded', function() { loadUserInfo(); loadResidents(); });
+        
+        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadResidents(); });
     </script>
 </body>
 </html>`;
