@@ -44,7 +44,22 @@ async function initializeDefaultAdmin() {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Serve login.html inline (bypass file access issues)
+// Serve static files (CSS, images, etc.)
+app.use(express.static('public'));
+
+// Explicitly serve CSS for Render compatibility
+app.get('/style.css', (req, res) => {
+    try {
+        const cssPath = path.join(__dirname, 'public', 'style.css');
+        const cssContent = fs.readFileSync(cssPath, 'utf8');
+        res.setHeader('Content-Type', 'text/css');
+        res.send(cssContent);
+    } catch (err) {
+        res.status(404).send('CSS not found');
+    }
+});
+
+// Serve login.html inline (for Vercel compatibility, but also works on Render)
 app.get('/login.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(`<!DOCTYPE html>
@@ -105,6 +120,19 @@ app.get('/login.html', (req, res) => {
 // Redirect root to login.html
 app.get('/', (req, res) => {
     res.redirect('/login.html');
+});
+
+// Serve all other HTML files from public folder
+app.get('/:page(*).html', (req, res) => {
+    try {
+        const page = req.params.page;
+        const filePath = path.join(__dirname, 'public', `${page}.html`);
+        const content = fs.readFileSync(filePath, 'utf8');
+        res.setHeader('Content-Type', 'text/html');
+        res.send(content);
+    } catch (err) {
+        res.status(404).send(`Page not found: ${req.params.page}.html`);
+    }
 });
 
 app.use(session({
