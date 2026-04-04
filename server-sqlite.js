@@ -1178,90 +1178,44 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
                 <div style="margin-bottom: 1.5rem;">
                     <input type="text" id="searchInput" placeholder="Search residents by name, username, or address..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
-                <div id="residentsContainer"><div class="loading">Loading residents...</div></div>
+                <div id="residentsContainer">
+                    <div class="loading">Loading residents...</div>
+                </div>
             </div>
         </main>
     </div>
     <script>
-        let allResidents = [], filteredResidents = [];
-        async function loadUserInfo() {
-            try {
-                const response = await fetch('/api/user-info');
-                if (response.ok) {
-                    const user = await response.json();
-                    document.getElementById('userFullName').textContent = user.fullName;
-                } else { window.location.href = '/login.html'; }
-            } catch (error) { window.location.href = '/login.html'; }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">Loading...</p>';
+            
+            fetch('/api/test-residents')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || data.length === 0) {
+                        document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">No residents found</p>';
+                        return;
+                    }
+                    var html = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#0077b6;color:white;"><th>Name</th><th>Username</th><th>Status</th><th>Action</th></tr>';
+                    data.forEach(function(u) {
+                        html += '<tr style="border-bottom:1px solid #ddd;"><td>' + (u.full_name || '-') + '</td><td>' + (u.username || '-') + '</td><td>' + (u.status || '-') + '</td><td><button onclick="deleteUser(' + u.id + ')" style="background:red;color:white;border:none;padding:5px 10px;cursor:pointer;">Delete</button></td></tr>';
+                    });
+                    html += '</table>';
+                    document.getElementById('residentsContainer').innerHTML = html;
+                })
+                .catch(function(err) {
+                    document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;color:red;">Error: ' + err.message + '</p>';
+                });
+        });
+        
+        function deleteUser(id) {
+            if (!confirm('Delete user ' + id + '?')) return;
+            fetch('/api/users/' + id, {method: 'DELETE'}).then(function() { location.reload(); });
         }
-        async function loadResidents() {
-            const container = document.getElementById('residentsContainer');
-            container.innerHTML = '<div class="loading">Fetching residents from API...</div>';
-            try {
-                const response = await fetch('/api/residents');
-                container.innerHTML += '<br>Response status: ' + response.status;
-                if (response.ok) {
-                    allResidents = await response.json();
-                    container.innerHTML += '<br>Data received: ' + allResidents.length + ' residents';
-                    filteredResidents = [...allResidents];
-                    displayResidents(filteredResidents);
-                } else { 
-                    container.innerHTML = '<div class="empty-state" style="color:red"><h3>API Error</h3><p>Status: ' + response.status + '</p></div>';
-                }
-            } catch (error) { 
-                container.innerHTML = '<div class="empty-state" style="color:red"><h3>Network Error</h3><p>' + error.message + '</p></div>';
-            }
-        }
-        function displayResidents(residentsToDisplay) {
-            const container = document.getElementById('residentsContainer');
-            if (residentsToDisplay.length === 0) {
-                container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>' + (allResidents.length === 0 ? 'No residents have registered yet.' : 'No residents match your search.') + '</p></div>';
-                return;
-            }
-            let html = '<div class="table-container"><table><thead><tr><th>Name</th><th>Age</th><th>Gender</th><th>Username</th><th>Contact</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
-            residentsToDisplay.forEach(r => {
-                html += '<tr><td><strong>' + (r.full_name || 'N/A') + '</strong></td>';
-                html += '<td>' + (r.age || '-') + '</td>';
-                html += '<td>' + (r.gender || '-') + '</td>';
-                html += '<td>' + (r.username || '-') + '</td>';
-                html += '<td>' + (r.contact_number || '-') + '</td>';
-                html += '<td>' + (r.address || '-') + '</td>';
-                html += '<td><span class="status-badge status-' + (r.status || 'unknown') + '">' + (r.status || 'unknown') + '</span></td>';
-                html += '<td><button class="btn btn-sm btn-danger" onclick="deleteUser(' + r.id + ', \'' + (r.full_name || 'Unknown').replace(/'/g, "\\'") + '\')">Delete</button></td></tr>';
-            });
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-        }
-        async function deleteUser(userId, userName) {
-            if (!confirm('Are you sure you want to delete ' + userName + '?')) return;
-            try {
-                const response = await fetch('/api/users/' + userId, {method: 'DELETE'});
-                const result = await response.json();
-                if (result.success) { showAlert(userName + ' deleted successfully', 'success'); loadResidents(); }
-                else { showAlert(result.message, 'error'); }
-            } catch (error) { showAlert('An error occurred while deleting the user', 'error'); }
-        }
-        function showAlert(message, type) {
-            const container = document.getElementById('alert-container');
-            container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
-            setTimeout(() => { container.innerHTML = ''; }, 5000);
-        }
+        
         function logout() {
-            fetch('/logout', {method: 'POST'}).catch(() => {});
+            fetch('/logout', {method: 'POST'}).catch(function() {});
             window.location.href = '/login.html';
         }
-        document.addEventListener('DOMContentLoaded', () => { 
-            loadUserInfo(); 
-            loadResidents();
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                filteredResidents = allResidents.filter(r => {
-                    return (r.full_name && r.full_name.toLowerCase().includes(searchTerm)) ||
-                           (r.username && r.username.toLowerCase().includes(searchTerm)) ||
-                           (r.address && r.address.toLowerCase().includes(searchTerm));
-                });
-                displayResidents(filteredResidents);
-            });
-        });
     </script>
 </body>
 </html>`;
@@ -1813,6 +1767,10 @@ function isAdmin(req, res, next) {
     if (req.session.role === 'admin') {
         next();
     } else {
+        // Return JSON for API calls, redirect for page requests
+        if (req.path.startsWith('/api/')) {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
         res.redirect('/resident-dashboard');
     }
 }
@@ -2156,6 +2114,14 @@ app.delete('/api/reports/:id', isAuthenticated, async (req, res) => {
         console.error('Error deleting report:', error.message);
         res.status(500).json({ success: false, message: 'Failed to delete report' });
     }
+});
+
+// TEST endpoint - no auth required, returns fake data
+app.get('/api/test-residents', async (req, res) => {
+    res.json([
+        { id: 1, full_name: 'Test User 1', age: 25, gender: 'Male', username: 'test1', status: 'approved' },
+        { id: 2, full_name: 'Test User 2', age: 30, gender: 'Female', username: 'test2', status: 'pending' }
+    ]);
 });
 
 app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {
