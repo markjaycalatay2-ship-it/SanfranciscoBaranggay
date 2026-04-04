@@ -1241,16 +1241,19 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             fetch('/logout', {method: 'POST'}).catch(() => {});
             window.location.href = '/login.html';
         }
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            filteredResidents = allResidents.filter(r => {
-                return (r.full_name && r.full_name.toLowerCase().includes(searchTerm)) ||
-                       (r.username && r.username.toLowerCase().includes(searchTerm)) ||
-                       (r.address && r.address.toLowerCase().includes(searchTerm));
+        document.addEventListener('DOMContentLoaded', () => { 
+            loadUserInfo(); 
+            loadResidents();
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                filteredResidents = allResidents.filter(r => {
+                    return (r.full_name && r.full_name.toLowerCase().includes(searchTerm)) ||
+                           (r.username && r.username.toLowerCase().includes(searchTerm)) ||
+                           (r.address && r.address.toLowerCase().includes(searchTerm));
+                });
+                displayResidents(filteredResidents);
             });
-            displayResidents(filteredResidents);
         });
-        document.addEventListener('DOMContentLoaded', () => { loadUserInfo(); loadResidents(); });
     </script>
 </body>
 </html>`;
@@ -1701,30 +1704,16 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html by reading file and injecting CSS
+// Serve resident-directory.html
 app.get('/resident-directory.html', (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-    
-    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading resident-directory.html:', err);
-            return res.status(500).send('Error loading page: ' + err.message);
-        }
-        
-        // Inject CSS inline
-        const htmlWithCSS = data.replace(
-            '<link rel="stylesheet" href="style.css">',
-            '<style>' + CSS_CONTENT + '</style>'
-        );
-        
-        res.setHeader('Content-Type', 'text/html');
-        res.send(htmlWithCSS);
-    });
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
+// Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.redirect('/resident-directory.html');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
 // Serve transaction-history.html
