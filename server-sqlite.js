@@ -1194,14 +1194,22 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
             } catch (error) { window.location.href = '/login.html'; }
         }
         async function loadResidents() {
+            const container = document.getElementById('residentsContainer');
+            container.innerHTML = '<div class="loading">Fetching residents from API...</div>';
             try {
                 const response = await fetch('/api/residents');
+                container.innerHTML += '<br>Response status: ' + response.status;
                 if (response.ok) {
                     allResidents = await response.json();
+                    container.innerHTML += '<br>Data received: ' + allResidents.length + ' residents';
                     filteredResidents = [...allResidents];
                     displayResidents(filteredResidents);
-                } else { showAlert('Failed to load residents', 'error'); }
-            } catch (error) { showAlert('An error occurred while loading residents', 'error'); }
+                } else { 
+                    container.innerHTML = '<div class="empty-state" style="color:red"><h3>API Error</h3><p>Status: ' + response.status + '</p></div>';
+                }
+            } catch (error) { 
+                container.innerHTML = '<div class="empty-state" style="color:red"><h3>Network Error</h3><p>' + error.message + '</p></div>';
+            }
         }
         function displayResidents(residentsToDisplay) {
             const container = document.getElementById('residentsContainer');
