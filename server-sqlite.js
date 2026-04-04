@@ -1746,30 +1746,17 @@ app.get('/user-approval', (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html with CSS injection
-function serveResidentDirectory(req, res) {
-    const fs = require('fs');
-    const path = require('path');
-    
-    fs.readFile(path.join(__dirname, 'public', 'resident-directory.html'), 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading resident-directory.html:', err);
-            return res.status(500).send('Error loading page');
-        }
-        
-        // Inject CSS inline
-        const htmlWithCSS = data.replace(
-            '<link rel="stylesheet" href="style.css">',
-            '<style>' + CSS_CONTENT + '</style>'
-        );
-        
-        res.setHeader('Content-Type', 'text/html');
-        res.send(htmlWithCSS);
-    });
-}
+// Serve resident-directory.html
+app.get('/resident-directory.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
+});
 
-app.get('/resident-directory.html', serveResidentDirectory);
-app.get('/resident-directory', serveResidentDirectory);
+// Serve resident-directory clean URL
+app.get('/resident-directory', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
+});
 
 // Serve transaction-history.html
 app.get('/transaction-history.html', (req, res) => {
