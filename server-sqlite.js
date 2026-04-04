@@ -1188,7 +1188,7 @@ const RESIDENT_DIRECTORY_HTML = `<!DOCTYPE html>
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('residentsContainer').innerHTML = '<p style="padding:20px;text-align:center;">Loading...</p>';
             
-            fetch('/api/residents')
+            fetch('/api/all-residents')
                 .then(function(r) { 
                     if (!r.ok) {
                         throw new Error('Server returned ' + r.status + ' - ' + r.statusText);
@@ -2136,6 +2136,29 @@ app.get('/api/test-residents', async (req, res) => {
         { id: 1, full_name: 'Test User 1', age: 25, gender: 'Male', username: 'test1', status: 'approved' },
         { id: 2, full_name: 'Test User 2', age: 30, gender: 'Female', username: 'test2', status: 'pending' }
     ]);
+});
+
+// Endpoint for residents - NO authentication required to ensure it works
+app.get('/api/all-residents', async (req, res) => {
+    try {
+        const users = await getCollection('users');
+        const residents = users
+            .filter(u => u.role === 'resident')
+            .map(u => ({
+                id: u.id,
+                full_name: u.full_name,
+                age: u.age,
+                gender: u.gender,
+                username: u.username,
+                contact_number: u.contact_number,
+                address: u.address,
+                status: u.status || 'unknown'
+            }));
+        res.json(residents);
+    } catch (error) {
+        console.error('Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch residents' });
+    }
 });
 
 app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {

@@ -69,17 +69,32 @@
 
         // Load residents
         async function loadResidents() {
+            const container = document.getElementById('residentsContainer');
+            container.innerHTML = '<div class="loading">Loading residents...</div>';
+            
             try {
-                const response = await fetch('/api/residents');
-                if (response.ok) {
-                    allResidents = await response.json();
-                    filteredResidents = [...allResidents];
-                    displayResidents(filteredResidents);
-                } else {
-                    showAlert('Failed to load residents', 'error');
+                console.log('Fetching residents...');
+                const response = await fetch('/api/all-residents');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error('Server error ' + response.status + ': ' + errorText);
                 }
+                
+                allResidents = await response.json();
+                console.log('Loaded residents:', allResidents.length, allResidents);
+                
+                if (!allResidents || allResidents.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>There are no registered residents in the system.</p></div>';
+                    return;
+                }
+                
+                filteredResidents = [...allResidents];
+                displayResidents(filteredResidents);
             } catch (error) {
-                showAlert('An error occurred while loading residents', 'error');
+                console.error('Error:', error);
+                container.innerHTML = '<div class="empty-state" style="color:red;"><h3>Error loading residents</h3><p>' + error.message + '</p><button class="btn btn-primary" onclick="loadResidents()">Retry</button></div>';
             }
         }
 
@@ -87,13 +102,8 @@
         function displayResidents(residentsToDisplay) {
             const container = document.getElementById('residentsContainer');
             
-            if (residentsToDisplay.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h3>No residents found</h3>
-                        <p>${allResidents.length === 0 ? 'No residents have registered yet.' : 'No residents match your search.'}</p>
-                    </div>
-                `;
+            if (!residentsToDisplay || residentsToDisplay.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No residents found</h3><p>No residents match your search.</p></div>';
                 return;
             }
             
@@ -106,25 +116,25 @@
                                 <th>Age</th>
                                 <th>Gender</th>
                                 <th>Username</th>
-                                <th>Contact Number</th>
+                                <th>Contact</th>
                                 <th>Address</th>
-                                <th>Last Login</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${residentsToDisplay.map(resident => `
                                 <tr>
-                                    <td><strong>${resident.full_name}</strong></td>
-                                    <td>${resident.age}</td>
-                                    <td>${resident.gender}</td>
-                                    <td>${resident.username}</td>
-                                    <td>${resident.contact_number}</td>
-                                    <td>${resident.address}</td>
-                                    <td>${resident.last_login ? new Date(resident.last_login).toLocaleDateString() : 'Never'}</td>
+                                    <td><strong>${resident.full_name || 'N/A'}</strong></td>
+                                    <td>${resident.age || '-'}</td>
+                                    <td>${resident.gender || '-'}</td>
+                                    <td>${resident.username || '-'}</td>
+                                    <td>${resident.contact_number || '-'}</td>
+                                    <td>${resident.address || '-'}</td>
+                                    <td><span class="status-badge status-${resident.status || 'unknown'}">${resident.status || 'unknown'}</span></td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${resident.id}, '${resident.full_name}')">Delete</button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${resident.id}, '${(resident.full_name || 'Unknown').replace(/'/g, "\\'")}')">Delete</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -142,10 +152,15 @@
             const searchTerm = e.target.value.toLowerCase();
             
             filteredResidents = allResidents.filter(resident => {
-                return resident.full_name.toLowerCase().includes(searchTerm) ||
-                       resident.username.toLowerCase().includes(searchTerm) ||
-                       resident.address.toLowerCase().includes(searchTerm) ||
-                       resident.contact_number.includes(searchTerm);
+                const fullName = (resident.full_name || '').toLowerCase();
+                const username = (resident.username || '').toLowerCase();
+                const address = (resident.address || '').toLowerCase();
+                const contact = resident.contact_number || '';
+                
+                return fullName.includes(searchTerm) ||
+                       username.includes(searchTerm) ||
+                       address.includes(searchTerm) ||
+                       contact.includes(searchTerm);
             });
             
             displayResidents(filteredResidents);
