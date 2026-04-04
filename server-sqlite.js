@@ -2148,6 +2148,8 @@ app.delete('/api/reports/:id', isAuthenticated, async (req, res) => {
 app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const users = await getCollection('users');
+        console.log('DEBUG: Total users fetched:', users.length);
+        console.log('DEBUG: All users:', users.map(u => ({ id: u.id, username: u.username, role: u.role, status: u.status })));
         const residents = users
             .filter(u => u.role === 'resident' && u.status === 'approved')
             .map(u => ({
@@ -2160,6 +2162,7 @@ app.get('/api/residents', isAuthenticated, isAdmin, async (req, res) => {
                 contact_number: u.contact_number,
                 address: u.address
             }));
+        console.log('DEBUG: Filtered residents:', residents.length);
         res.json(residents);
     } catch (error) {
         console.error('Error fetching residents:', error.message);
@@ -2212,6 +2215,8 @@ app.get('/api/statistics', isAuthenticated, isAdmin, async (req, res) => {
 app.get('/api/pending-users', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const users = await getCollection('users');
+        console.log('DEBUG pending-users: Total users:', users.length);
+        console.log('DEBUG pending-users: Users data:', users.map(u => ({ id: u.id, username: u.username, role: u.role, status: u.status })));
         const pendingUsers = users
             .filter(u => u.status === 'pending' && u.role !== 'admin')
             .map(u => ({
@@ -2224,6 +2229,7 @@ app.get('/api/pending-users', isAuthenticated, isAdmin, async (req, res) => {
                 address: u.address,
                 created_at: u.created_at
             }));
+        console.log('DEBUG pending-users: Filtered pending:', pendingUsers.length);
         res.json(pendingUsers);
     } catch (error) {
         console.error('Error fetching pending users:', error.message);
