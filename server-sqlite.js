@@ -151,6 +151,91 @@ app.get('/', (req, res) => {
     res.redirect('/login.html');
 });
 
+// Serve admin-dashboard.html
+app.get('/admin-dashboard.html', (req, res) => {
+    const possiblePaths = [
+        path.join(__dirname, 'public', 'admin-dashboard.html'),
+        path.join(process.cwd(), 'public', 'admin-dashboard.html'),
+        './public/admin-dashboard.html',
+        'public/admin-dashboard.html'
+    ];
+    
+    for (const filePath of possiblePaths) {
+        try {
+            if (fs.existsSync(filePath)) {
+                let content = fs.readFileSync(filePath, 'utf8');
+                // Inline the CSS
+                const cssPath = path.join(path.dirname(filePath), 'style.css');
+                if (fs.existsSync(cssPath)) {
+                    const cssContent = fs.readFileSync(cssPath, 'utf8');
+                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
+                }
+                res.setHeader('Content-Type', 'text/html');
+                return res.send(content);
+            }
+        } catch (err) {
+            // Try next path
+        }
+    }
+    res.status(404).send('admin-dashboard.html not found');
+});
+
+// Serve register.html
+app.get('/register.html', (req, res) => {
+    const possiblePaths = [
+        path.join(__dirname, 'public', 'register.html'),
+        path.join(process.cwd(), 'public', 'register.html'),
+        './public/register.html',
+        'public/register.html'
+    ];
+    
+    for (const filePath of possiblePaths) {
+        try {
+            if (fs.existsSync(filePath)) {
+                let content = fs.readFileSync(filePath, 'utf8');
+                const cssPath = path.join(path.dirname(filePath), 'style.css');
+                if (fs.existsSync(cssPath)) {
+                    const cssContent = fs.readFileSync(cssPath, 'utf8');
+                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
+                }
+                res.setHeader('Content-Type', 'text/html');
+                return res.send(content);
+            }
+        } catch (err) {
+            // Try next path
+        }
+    }
+    res.status(404).send('register.html not found');
+});
+
+// Serve resident-dashboard.html
+app.get('/resident-dashboard.html', (req, res) => {
+    const possiblePaths = [
+        path.join(__dirname, 'public', 'resident-dashboard.html'),
+        path.join(process.cwd(), 'public', 'resident-dashboard.html'),
+        './public/resident-dashboard.html',
+        'public/resident-dashboard.html'
+    ];
+    
+    for (const filePath of possiblePaths) {
+        try {
+            if (fs.existsSync(filePath)) {
+                let content = fs.readFileSync(filePath, 'utf8');
+                const cssPath = path.join(path.dirname(filePath), 'style.css');
+                if (fs.existsSync(cssPath)) {
+                    const cssContent = fs.readFileSync(cssPath, 'utf8');
+                    content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${cssContent}</style>`);
+                }
+                res.setHeader('Content-Type', 'text/html');
+                return res.send(content);
+            }
+        } catch (err) {
+            // Try next path
+        }
+    }
+    res.status(404).send('resident-dashboard.html not found');
+});
+
 // Serve all other HTML files from public folder
 app.get('/:page(*).html', (req, res) => {
     const page = req.params.page;
