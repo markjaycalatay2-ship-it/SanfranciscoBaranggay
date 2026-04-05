@@ -1667,28 +1667,24 @@ app.get('/manage-reports', (req, res) => {
     res.send(MANAGE_REPORTS_HTML);
 });
 
-// Serve user-approval.html - USE INLINE HTML
+// Serve user-approval.html - USE ACTUAL FILE
 app.get('/user-approval.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(USER_APPROVAL_HTML);
+    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
 });
 
 // Serve user-approval clean URL
 app.get('/user-approval', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(USER_APPROVAL_HTML);
+    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
 });
 
-// Serve resident-directory.html - USE INLINE HTML
+// Serve resident-directory.html - USE ACTUAL FILE
 app.get('/resident-directory.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
 });
 
 // Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
 });
 
 // Serve transaction-history.html
