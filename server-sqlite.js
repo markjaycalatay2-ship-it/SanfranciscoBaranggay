@@ -2297,54 +2297,92 @@ app.get('/api/users', isAuthenticated, isAdmin, async (req, res) => {
 app.put('/api/users/:id/approve', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        console.log('DEBUG: Approving user with ID:', userId);
+        
         const users = await getCollection('users');
+        console.log('DEBUG: Total users:', users.length);
+        console.log('DEBUG: All users:', users.map(u => ({ id: u.id, username: u.username, status: u.status })));
+        
         const user = users.find(u => u.id === userId);
         if (!user) {
+            console.log('DEBUG: User not found with ID:', userId);
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        await updateDocument('users', user.username, { status: 'approved' });
+        
+        console.log('DEBUG: Found user to approve:', user.username);
+        
+        // Use username if available, otherwise use id
+        const updateId = user.username ? user.username.toString() : userId.toString();
+        console.log('DEBUG: Updating user with ID:', updateId);
+        
+        await updateDocument('users', updateId, { status: 'approved' });
+        
         await addDocument('logs', {
             user_id: req.session.userId,
-            action: `Approved user ${user.username}`,
+            action: `Approved user ${user.username || userId}`,
             timestamp: new Date().toISOString()
         });
+        
+        console.log('DEBUG: User approved successfully');
         res.json({ success: true, message: 'User approved successfully' });
     } catch (error) {
-        console.error('Error approving user:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to approve user' });
+        console.error('DEBUG: Error approving user:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to approve user: ' + error.message });
     }
 });
 
 app.put('/api/users/:id/reject', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        console.log('DEBUG: Rejecting user with ID:', userId);
+        
         const users = await getCollection('users');
+        console.log('DEBUG: Total users:', users.length);
+        
         const user = users.find(u => u.id === userId);
         if (!user) {
+            console.log('DEBUG: User not found with ID:', userId);
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        await updateDocument('users', user.username, { status: 'rejected' });
+        
+        console.log('DEBUG: Found user to reject:', user.username);
+        
+        // Use username if available, otherwise use id
+        const updateId = user.username ? user.username.toString() : userId.toString();
+        console.log('DEBUG: Updating user with ID:', updateId);
+        
+        await updateDocument('users', updateId, { status: 'rejected' });
+        
         await addDocument('logs', {
             user_id: req.session.userId,
-            action: `Rejected user ${user.username}`,
+            action: `Rejected user ${user.username || userId}`,
             timestamp: new Date().toISOString()
         });
+        
+        console.log('DEBUG: User rejected successfully');
         res.json({ success: true, message: 'User rejected successfully' });
     } catch (error) {
-        console.error('Error rejecting user:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to reject user' });
+        console.error('DEBUG: Error rejecting user:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to reject user: ' + error.message });
     }
 });
 
 app.delete('/api/users/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        console.log('DEBUG: Deleting user with ID:', userId);
+        
         const users = await getCollection('users');
+        console.log('DEBUG: Total users before delete:', users.length);
+        
         const user = users.find(u => u.id === userId);
         if (!user) {
+            console.log('DEBUG: User not found with ID:', userId);
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        const username = user.username;
+        
+        console.log('DEBUG: Found user to delete:', user.username || user.id);
+        
         // Delete user's reports
         const reports = await getCollection('reports');
         for (const report of reports) {
@@ -2352,6 +2390,7 @@ app.delete('/api/users/:id', isAuthenticated, isAdmin, async (req, res) => {
                 await deleteDocument('reports', report.id.toString());
             }
         }
+        
         // Delete user's logs
         const logs = await getCollection('logs');
         for (const log of logs) {
@@ -2359,16 +2398,23 @@ app.delete('/api/users/:id', isAuthenticated, isAdmin, async (req, res) => {
                 await deleteDocument('logs', log.id.toString());
             }
         }
-        await deleteDocument('users', username);
+        
+        // Delete user - use username if available, otherwise use id as string
+        const deleteId = user.username ? user.username.toString() : userId.toString();
+        console.log('DEBUG: Deleting with ID:', deleteId);
+        await deleteDocument('users', deleteId);
+        
         await addDocument('logs', {
             user_id: req.session.userId,
-            action: `Deleted user ${username}`,
+            action: `Deleted user ${user.username || userId}`,
             timestamp: new Date().toISOString()
         });
+        
+        console.log('DEBUG: User deleted successfully');
         res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
-        console.error('Error deleting user:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to delete user' });
+        console.error('DEBUG: Error deleting user:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to delete user: ' + error.message });
     }
 });
 
