@@ -39,7 +39,7 @@ const mockFirestore = {
             },
             delete: async () => {
                 if (!mockData[name]) return;
-                mockData[name] = mockData[name].filter(d => d.id !== id);
+                mockData[name] = mockData[name].filter(d => String(d.id) !== String(id));
             }
         }),
         add: async (data) => {
