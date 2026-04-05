@@ -1667,24 +1667,28 @@ app.get('/manage-reports', (req, res) => {
     res.send(MANAGE_REPORTS_HTML);
 });
 
-// Serve user-approval.html - USE ACTUAL FILE
+// Serve user-approval.html - USE INLINE HTML
 app.get('/user-approval.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
+    res.setHeader('Content-Type', 'text/html');
+    res.send(USER_APPROVAL_HTML);
 });
 
 // Serve user-approval clean URL
 app.get('/user-approval', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
+    res.setHeader('Content-Type', 'text/html');
+    res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html - USE ACTUAL FILE
+// Serve resident-directory.html - USE INLINE HTML
 app.get('/resident-directory.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
 // Serve resident-directory clean URL
 app.get('/resident-directory', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+    res.setHeader('Content-Type', 'text/html');
+    res.send(RESIDENT_DIRECTORY_HTML);
 });
 
 // Serve transaction-history.html
@@ -1931,10 +1935,6 @@ app.get('/manage-reports', isAuthenticated, isAdmin, (req, res) => {
 
 app.get('/transaction-history', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(__dirname + '/public/transaction-history.html');
-});
-
-app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/user-approval.html');
 });
 
 // API Routes
