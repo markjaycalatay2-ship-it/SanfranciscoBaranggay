@@ -1064,14 +1064,24 @@ const USER_APPROVAL_HTML = `<!DOCTYPE html>
             } catch (error) { window.location.href = '/login.html'; }
         }
         async function loadPendingUsers() {
+            console.log('DEBUG: Loading pending users...');
             try {
                 const response = await fetch('/api/pending-users');
+                console.log('DEBUG: Response status:', response.status);
                 if (response.ok) {
                     allPendingUsers = await response.json();
+                    console.log('DEBUG: Received users:', allPendingUsers.length, allPendingUsers);
                     filteredUsers = [...allPendingUsers];
                     displayPendingUsers(filteredUsers);
-                } else { showAlert('Failed to load pending users', 'error'); }
-            } catch (error) { showAlert('An error occurred while loading pending users', 'error'); }
+                } else {
+                    const errorText = await response.text();
+                    console.log('DEBUG: Error response:', errorText);
+                    showAlert('Failed to load pending users: ' + errorText, 'error');
+                }
+            } catch (error) {
+                console.log('DEBUG: Exception:', error.message);
+                showAlert('An error occurred while loading pending users: ' + error.message, 'error');
+            }
         }
         function displayPendingUsers(usersToDisplay) {
             const container = document.getElementById('pendingUsersContainer');
@@ -2090,9 +2100,12 @@ app.get('/api/db-status', async (req, res) => {
         res.json({
             success: true,
             totalUsers: users.length,
+            pendingUsers: users.filter(u => u.status === 'pending').length,
+            approvedUsers: users.filter(u => u.status === 'approved').length,
+            rejectedUsers: users.filter(u => u.status === 'rejected').length,
             residents: users.filter(u => u.role === 'resident').length,
             admins: users.filter(u => u.role === 'admin').length,
-            sampleUsers: users.slice(0, 3).map(u => ({ id: u.id, username: u.username, role: u.role }))
+            allUsers: users.map(u => ({ id: u.id, username: u.username, role: u.role, status: u.status }))
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
