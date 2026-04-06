@@ -1146,6 +1146,10 @@ const USER_APPROVAL_HTML = `<!DOCTYPE html>
             try { await fetch('/logout', {method: 'POST'}); } catch (e) {}
             window.location.href = '/login.html';
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadPendingUsers();
+        });
     </script>
 </body>
 </html>`;
