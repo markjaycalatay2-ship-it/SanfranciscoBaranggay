@@ -1667,26 +1667,6 @@ app.get('/manage-reports', (req, res) => {
     res.send(MANAGE_REPORTS_HTML);
 });
 
-// Serve user-approval.html - USE ACTUAL FILE
-app.get('/user-approval.html', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/user-approval.html');
-});
-
-// Serve user-approval clean URL
-app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/user-approval.html');
-});
-
-// Serve resident-directory.html - USE ACTUAL FILE
-app.get('/resident-directory.html', isAuthenticated, (req, res) => {
-    res.sendFile(__dirname + '/public/resident-directory.html');
-});
-
-// Serve resident-directory clean URL
-app.get('/resident-directory', isAuthenticated, (req, res) => {
-    res.sendFile(__dirname + '/public/resident-directory.html');
-});
-
 // Serve transaction-history.html
 app.get('/transaction-history.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
@@ -1757,6 +1737,26 @@ function isAdmin(req, res, next) {
         res.redirect('/resident-dashboard');
     }
 }
+
+// Serve user-approval.html - USE ACTUAL FILE
+app.get('/user-approval.html', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(__dirname + '/public/user-approval.html');
+});
+
+// Serve user-approval clean URL
+app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(__dirname + '/public/user-approval.html');
+});
+
+// Serve resident-directory.html - USE ACTUAL FILE
+app.get('/resident-directory.html', isAuthenticated, (req, res) => {
+    res.sendFile(__dirname + '/public/resident-directory.html');
+});
+
+// Serve resident-directory clean URL
+app.get('/resident-directory', isAuthenticated, (req, res) => {
+    res.sendFile(__dirname + '/public/resident-directory.html');
+});
 
 // Routes
 app.get('/', (req, res) => {
