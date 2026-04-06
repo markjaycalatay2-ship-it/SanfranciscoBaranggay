@@ -1668,23 +1668,23 @@ app.get('/manage-reports', (req, res) => {
 });
 
 // Serve user-approval.html - USE ACTUAL FILE
-app.get('/user-approval.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
+app.get('/user-approval.html', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(__dirname + '/public/user-approval.html');
 });
 
 // Serve user-approval clean URL
-app.get('/user-approval', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'user-approval.html'));
+app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(__dirname + '/public/user-approval.html');
 });
 
 // Serve resident-directory.html - USE ACTUAL FILE
-app.get('/resident-directory.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+app.get('/resident-directory.html', isAuthenticated, (req, res) => {
+    res.sendFile(__dirname + '/public/resident-directory.html');
 });
 
 // Serve resident-directory clean URL
-app.get('/resident-directory', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+app.get('/resident-directory', isAuthenticated, (req, res) => {
+    res.sendFile(__dirname + '/public/resident-directory.html');
 });
 
 // Serve transaction-history.html
@@ -1721,32 +1721,6 @@ app.get('/my-reports.html', (req, res) => {
 app.get('/my-reports', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(MY_REPORTS_HTML);
-});
-
-// Serve all other HTML files from public folder with inline CSS
-app.get('/:page(*).html', (req, res) => {
-    const page = req.params.page;
-    const possiblePaths = [
-        path.join(__dirname, 'public', `${page}.html`),
-        path.join(process.cwd(), 'public', `${page}.html`),
-        `./public/${page}.html`,
-        `public/${page}.html`
-    ];
-    
-    for (const filePath of possiblePaths) {
-        try {
-            if (fs.existsSync(filePath)) {
-                let content = fs.readFileSync(filePath, 'utf8');
-                // Inline the CSS using the constant
-                content = content.replace('<link rel="stylesheet" href="style.css">', `<style>${CSS_CONTENT}</style>`);
-                res.setHeader('Content-Type', 'text/html');
-                return res.send(content);
-            }
-        } catch (err) {
-            // Try next path
-        }
-    }
-    res.status(404).send(`Page not found: ${page}.html`);
 });
 
 app.use(session({
@@ -1907,30 +1881,6 @@ app.post('/register', async (req, res) => {
         console.error('Registration error:', error.message);
         res.status(500).json({ success: false, message: 'Registration failed' });
     }
-});
-
-app.get('/admin-dashboard', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/admin-dashboard.html');
-});
-
-app.get('/resident-dashboard', isAuthenticated, (req, res) => {
-    res.sendFile(__dirname + '/public/resident-dashboard.html');
-});
-
-app.get('/new-report', isAuthenticated, (req, res) => {
-    res.sendFile(__dirname + '/public/new-report.html');
-});
-
-app.get('/my-reports', isAuthenticated, (req, res) => {
-    res.sendFile(__dirname + '/public/my-reports.html');
-});
-
-app.get('/manage-reports', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/manage-reports.html');
-});
-
-app.get('/transaction-history', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/public/transaction-history.html');
 });
 
 // API Routes
