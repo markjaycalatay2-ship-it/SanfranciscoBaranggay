@@ -1533,13 +1533,23 @@ const MY_REPORTS_HTML = `<!DOCTYPE html>
             } catch (error) { window.location.href = '/login.html'; }
         }
         async function loadReports() {
+            console.log('DEBUG my-reports: Loading reports...');
             try {
                 const response = await fetch('/api/my-reports');
+                console.log('DEBUG my-reports: Response status:', response.status);
                 if (response.ok) {
                     reports = await response.json();
+                    console.log('DEBUG my-reports: Received reports:', reports.length);
                     displayReports(reports);
-                } else { showAlert('Failed to load your reports', 'error'); }
-            } catch (error) { showAlert('An error occurred while loading your reports', 'error'); }
+                } else {
+                    const errorText = await response.text();
+                    console.log('DEBUG my-reports: Error response:', errorText);
+                    showAlert('Failed to load your reports: ' + errorText, 'error');
+                }
+            } catch (error) {
+                console.log('DEBUG my-reports: Exception:', error.message);
+                showAlert('An error occurred while loading your reports: ' + error.message, 'error');
+            }
         }
         function displayReports(reportsToDisplay) {
             const container = document.getElementById('reportsContainer');
@@ -1915,6 +1925,7 @@ app.post('/api/reports', isAuthenticated, async (req, res) => {
     const { description, date_time, location, involved_persons, cause } = req.body;
     
     try {
+        console.log('DEBUG create-report: session userId:', req.session.userId, typeof req.session.userId);
         const reports = await getCollection('reports');
         const newId = reports.length > 0 ? Math.max(...reports.map(r => r.id)) + 1 : 1;
         
@@ -1930,7 +1941,9 @@ app.post('/api/reports', isAuthenticated, async (req, res) => {
             created_at: new Date().toISOString()
         };
         
+        console.log('DEBUG create-report: saving report:', newReport);
         await setDocument('reports', newId.toString(), newReport);
+        console.log('DEBUG create-report: saved successfully');
         
         await addDocument('logs', {
             user_id: req.session.userId,
@@ -1979,10 +1992,15 @@ app.get('/api/reports', isAuthenticated, async (req, res) => {
 app.get('/api/my-reports', isAuthenticated, async (req, res) => {
     try {
         const reports = await getCollection('reports');
+        console.log('DEBUG my-reports: session userId:', req.session.userId, typeof req.session.userId);
+        console.log('DEBUG my-reports: all reports count:', reports.length);
+        console.log('DEBUG my-reports: sample report user_ids:', reports.slice(0, 3).map(r => ({ id: r.id, user_id: r.user_id, type: typeof r.user_id })));
+        
         const userReports = reports
-            .filter(r => r.user_id === req.session.userId)
+            .filter(r => String(r.user_id) === String(req.session.userId))
             .map(r => ({ ...r, username: req.session.username }));
         
+        console.log('DEBUG my-reports: filtered count:', userReports.length);
         res.json(userReports);
     } catch (error) {
         console.error('Error fetching user reports:', error.message);
