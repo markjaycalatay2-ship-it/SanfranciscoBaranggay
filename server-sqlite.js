@@ -1715,16 +1715,14 @@ app.get('/new-report', (req, res) => {
     res.send(NEW_REPORT_HTML);
 });
 
-// Serve my-reports.html
+// Serve my-reports.html from public folder
 app.get('/my-reports.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(MY_REPORTS_HTML);
+    res.sendFile(__dirname + '/public/my-reports.html');
 });
 
 // Serve my-reports clean URL
 app.get('/my-reports', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(MY_REPORTS_HTML);
+    res.sendFile(__dirname + '/public/my-reports.html');
 });
 
 app.use(session({
