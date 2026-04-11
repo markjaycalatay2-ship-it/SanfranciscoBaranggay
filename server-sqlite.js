@@ -1703,26 +1703,17 @@ app.get('/transaction-history', (req, res) => {
     res.send(TRANSACTION_HISTORY_HTML);
 });
 
-// Serve new-report.html
-app.get('/new-report.html', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(NEW_REPORT_HTML);
+// Serve static files from public folder
+app.use(express.static('public'));
+
+// Serve new-report.html from public folder
+app.get('/new-report.html', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'new-report.html'));
 });
 
 // Serve new-report clean URL
-app.get('/new-report', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(NEW_REPORT_HTML);
-});
-
-// Serve my-reports.html from public folder
-app.get('/my-reports.html', (req, res) => {
-    res.sendFile(__dirname + '/public/my-reports.html');
-});
-
-// Serve my-reports clean URL
-app.get('/my-reports', (req, res) => {
-    res.sendFile(__dirname + '/public/my-reports.html');
+app.get('/new-report', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'new-report.html'));
 });
 
 app.use(session({
@@ -1772,16 +1763,14 @@ app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
     res.send(USER_APPROVAL_HTML);
 });
 
-// Serve resident-directory.html - USE INLINE HTML LIKE OTHER ROUTES
-app.get('/resident-directory.html', isAuthenticated, (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+// Serve resident-directory.html from public folder
+app.get('/resident-directory.html', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
 });
 
 // Serve resident-directory clean URL
-app.get('/resident-directory', isAuthenticated, (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(RESIDENT_DIRECTORY_HTML);
+app.get('/resident-directory', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
 });
 
 // Routes
@@ -2132,8 +2121,8 @@ app.get('/api/db-status', async (req, res) => {
     }
 });
 
-// Endpoint for residents - NO authentication required to ensure it works
-app.get('/api/all-residents', async (req, res) => {
+// Endpoint for residents - requires admin authentication
+app.get('/api/all-residents', isAuthenticated, isAdmin, async (req, res) => {
     try {
         console.log('DEBUG /api/all-residents: Starting fetch...');
         const users = await getCollection('users');
