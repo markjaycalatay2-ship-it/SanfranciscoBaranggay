@@ -1632,6 +1632,38 @@ const MY_REPORTS_HTML = `<!DOCTYPE html>
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+// Session middleware - MUST be before any routes that use sessions
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'barangay-secret-key-2024',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        maxAge: 24 * 60 * 60 * 1000,
+        secure: isVercel
+    }
+}));
+
+// Middleware to check if user is logged in
+function isAuthenticated(req, res, next) {
+    if (req.session.userId) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
+}
+
+// Middleware to check if user is admin
+function isAdmin(req, res, next) {
+    if (req.session.role === 'admin') {
+        next();
+    } else {
+        if (req.path.startsWith('/api/')) {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+        res.redirect('/resident-dashboard');
+    }
+}
+
 // Serve login.html inline with embedded CSS
 app.get('/login.html', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
@@ -1650,60 +1682,68 @@ app.get('/style.css', (req, res) => {
     res.send(CSS_CONTENT);
 });
 
-// Redirect root to login.html
+// Root route - redirect based on auth status
 app.get('/', (req, res) => {
-    res.redirect('/login.html');
+    if (req.session.userId) {
+        if (req.session.role === 'admin') {
+            res.redirect('/admin-dashboard');
+        } else {
+            res.redirect('/resident-dashboard');
+        }
+    } else {
+        res.redirect('/login');
+    }
 });
 
-// Serve admin-dashboard.html inline with embedded CSS
-app.get('/admin-dashboard.html', (req, res) => {
+// Serve admin-dashboard.html inline with embedded CSS (admin only)
+app.get('/admin-dashboard.html', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(ADMIN_DASHBOARD_HTML);
 });
 
-// Serve admin dashboard clean URL
-app.get('/admin-dashboard', (req, res) => {
+// Serve admin dashboard clean URL (admin only)
+app.get('/admin-dashboard', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(ADMIN_DASHBOARD_HTML);
 });
 
-// Serve resident-dashboard.html inline with embedded CSS
-app.get('/resident-dashboard.html', (req, res) => {
+// Serve resident-dashboard.html inline with embedded CSS (authenticated users)
+app.get('/resident-dashboard.html', isAuthenticated, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(RESIDENT_DASHBOARD_HTML);
 });
 
-// Serve resident dashboard clean URL
-app.get('/resident-dashboard', (req, res) => {
+// Serve resident dashboard clean URL (authenticated users)
+app.get('/resident-dashboard', isAuthenticated, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(RESIDENT_DASHBOARD_HTML);
 });
 
-// Serve manage-reports.html
-app.get('/manage-reports.html', (req, res) => {
+// Serve manage-reports.html (admin only)
+app.get('/manage-reports.html', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(MANAGE_REPORTS_HTML);
 });
 
-// Serve manage-reports clean URL
-app.get('/manage-reports', (req, res) => {
+// Serve manage-reports clean URL (admin only)
+app.get('/manage-reports', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(MANAGE_REPORTS_HTML);
 });
 
-// Serve transaction-history.html
-app.get('/transaction-history.html', (req, res) => {
+// Serve transaction-history.html (admin only)
+app.get('/transaction-history.html', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(TRANSACTION_HISTORY_HTML);
 });
 
-// Serve transaction-history clean URL
-app.get('/transaction-history', (req, res) => {
+// Serve transaction-history clean URL (admin only)
+app.get('/transaction-history', isAuthenticated, isAdmin, (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(TRANSACTION_HISTORY_HTML);
 });
 
-// Serve static files from public folder
+// Serve static files from public folder (for CSS, JS, images)
 app.use(express.static('public'));
 
 // Serve new-report.html from public folder
@@ -1716,40 +1756,15 @@ app.get('/new-report', isAuthenticated, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'new-report.html'));
 });
 
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'barangay-secret-key-2024',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        maxAge: 24 * 60 * 60 * 1000,
-        secure: isVercel
-    }
-}));
+// Serve my-reports.html from public folder
+app.get('/my-reports.html', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'my-reports.html'));
+});
 
-// Initialize default admin
-initializeDefaultAdmin();
-
-// Middleware to check if user is logged in
-function isAuthenticated(req, res, next) {
-    if (req.session.userId) {
-        next();
-    } else {
-        res.redirect('/login');
-    }
-}
-
-// Middleware to check if user is admin
-function isAdmin(req, res, next) {
-    if (req.session.role === 'admin') {
-        next();
-    } else {
-        // Return JSON for API calls, redirect for page requests
-        if (req.path.startsWith('/api/')) {
-            return res.status(403).json({ success: false, message: 'Admin access required' });
-        }
-        res.redirect('/resident-dashboard');
-    }
-}
+// Serve my-reports clean URL
+app.get('/my-reports', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'my-reports.html'));
+});
 
 // Serve user-approval.html - USE INLINE HTML LIKE OTHER ROUTES
 app.get('/user-approval.html', isAuthenticated, isAdmin, (req, res) => {
