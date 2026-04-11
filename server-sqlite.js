@@ -1743,27 +1743,55 @@ app.get('/transaction-history', isAuthenticated, isAdmin, (req, res) => {
     res.send(TRANSACTION_HISTORY_HTML);
 });
 
-// Serve static files from public folder (for CSS, JS, images)
-app.use(express.static('public'));
+// Serve style.css from inline constant (public folder files are served via explicit routes above)
+// Note: CSS is served via /style.css route defined earlier
 
 // Serve new-report.html from public folder
 app.get('/new-report.html', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'new-report.html'));
+    const filePath = path.join(__dirname, 'public', 'new-report.html');
+    console.log('Serving new-report.html from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving new-report.html:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Serve new-report clean URL
 app.get('/new-report', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'new-report.html'));
+    const filePath = path.join(__dirname, 'public', 'new-report.html');
+    console.log('Serving new-report from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving new-report:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Serve my-reports.html from public folder
 app.get('/my-reports.html', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'my-reports.html'));
+    const filePath = path.join(__dirname, 'public', 'my-reports.html');
+    console.log('Serving my-reports.html from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving my-reports.html:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Serve my-reports clean URL
 app.get('/my-reports', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'my-reports.html'));
+    const filePath = path.join(__dirname, 'public', 'my-reports.html');
+    console.log('Serving my-reports from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving my-reports:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Serve user-approval.html - USE INLINE HTML LIKE OTHER ROUTES
@@ -1780,12 +1808,26 @@ app.get('/user-approval', isAuthenticated, isAdmin, (req, res) => {
 
 // Serve resident-directory.html from public folder
 app.get('/resident-directory.html', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+    const filePath = path.join(__dirname, 'public', 'resident-directory.html');
+    console.log('Serving resident-directory.html from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving resident-directory.html:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Serve resident-directory clean URL
 app.get('/resident-directory', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'resident-directory.html'));
+    const filePath = path.join(__dirname, 'public', 'resident-directory.html');
+    console.log('Serving resident-directory from:', filePath);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving resident-directory:', err);
+            res.status(500).send('Error loading page');
+        }
+    });
 });
 
 // Routes
